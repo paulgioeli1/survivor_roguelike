@@ -11,7 +11,11 @@ class GameOverScene extends Phaser.Scene {
   create() {
     drawNeonGrid(this, 0.4);
 
-    this.add.text(GAME_WIDTH / 2, 150, 'YOU DIED', {
+    // Layout was tuned for a 600px-tall canvas; scale absolute Y
+    // offsets so this stays centered on taller canvases.
+    const s = GAME_HEIGHT / 600;
+
+    this.add.text(GAME_WIDTH / 2, 150 * s, 'YOU DIED', {
       fontFamily: FONT_FAMILY,
       fontSize: '44px',
       fontStyle: '900',
@@ -22,20 +26,20 @@ class GameOverScene extends Phaser.Scene {
     const secs = Math.floor(this.finalTime % 60);
     const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 
-    this.add.text(GAME_WIDTH / 2, 230, `survived  ${timeStr}`, {
+    this.add.text(GAME_WIDTH / 2, 230 * s, `survived  ${timeStr}`, {
       fontFamily: FONT_FAMILY,
       fontSize: '20px',
       color: '#e8f9ff'
     }).setOrigin(0.5);
 
-    this.add.text(GAME_WIDTH / 2, 264, `enemies defeated  ${this.finalScore}`, {
+    this.add.text(GAME_WIDTH / 2, 264 * s, `enemies defeated  ${this.finalScore}`, {
       fontFamily: FONT_FAMILY,
       fontSize: '20px',
       color: '#e8f9ff'
     }).setOrigin(0.5);
 
-    this.makeButton(GAME_WIDTH / 2, 360, 'RESTART', 0x00e5ff, () => this.scene.start('Game'));
-    this.makeButton(GAME_WIDTH / 2, 430, 'QUIT', 0x8890b0, () => this.scene.start('MainMenu'));
+    this.makeButton(GAME_WIDTH / 2, 360 * s, 'RESTART', 0x00e5ff, () => this.scene.start('Game'));
+    this.makeButton(GAME_WIDTH / 2, 430 * s, 'QUIT', 0x8890b0, () => this.scene.start('MainMenu'));
   }
 
   makeButton(x, y, label, color, onClick) {

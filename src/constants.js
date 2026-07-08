@@ -1,5 +1,5 @@
-const GAME_WIDTH = 900;
-const GAME_HEIGHT = 600;
+const GAME_WIDTH = 1800;
+const GAME_HEIGHT = 1200;
 const FONT_FAMILY = '"Orbitron", sans-serif';
 const MAX_HP = 5;
 
@@ -16,21 +16,23 @@ const COLORS = {
   bomb: 0xffb347,
   gun: 0xfff275,
   laser: 0xb15bff,
-  sword: 0xdfe8ff
+  sword: 0xdfe8ff,
+  turret: 0xb84dff
 };
 
 const ENEMY_TIERS = {
   red: { hp: 1, speed: 119, color: COLORS.red, texture: 'enemy-red' },
   green: { hp: 2, speed: 77, color: COLORS.green, texture: 'enemy-green' },
-  blue: { hp: 3, speed: 47, color: COLORS.blue, texture: 'enemy-blue' }
+  blue: { hp: 3, speed: 47, color: COLORS.blue, texture: 'enemy-blue' },
+  turret: { hp: 5, speed: 110, color: COLORS.turret, texture: 'enemy-turret' }
 };
 
 const WEAPONS = {
-  orb: { name: 'Orb', color: COLORS.orb, description: 'Orbiting shields block enemies.' },
-  bomb: { name: 'Bomb', color: COLORS.bomb, description: 'Drops charges at your feet. +1 per minute.' },
-  gun: { name: 'Gun', color: COLORS.gun, description: 'Fires bullets at the cursor. +1 spread per minute.' },
-  laser: { name: 'Laser', color: COLORS.laser, description: 'Pierces enemies in a line. Fires faster over time.' },
-  sword: { name: 'Sword', color: COLORS.sword, description: '60° slash toward the cursor.' }
+  orb: { name: 'Orb', color: COLORS.orb, description: 'Orbiting shields block enemies. Right click: charge shockwave.' },
+  bomb: { name: 'Bomb', color: COLORS.bomb, description: 'Left click: drop a bomb (max 3). Right click: detonate them all.' },
+  gun: { name: 'Gun', color: COLORS.gun, description: 'Left click: fire a bullet (max 5). Right click: full-clip spread.' },
+  laser: { name: 'Laser', color: COLORS.laser, description: 'Hold left click to fire until energy runs out. Right click: overcharged beam.' },
+  sword: { name: 'Sword', color: COLORS.sword, description: 'Left click: slash toward the cursor. Right click: spinning slash.' }
 };
 
 function drawNeonGrid(scene, alpha) {
