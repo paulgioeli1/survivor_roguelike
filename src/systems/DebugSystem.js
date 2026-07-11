@@ -127,8 +127,10 @@ export class DebugSystem {
 
   spawnEnemy(name) {
     const pos = this.scene.getSpawnPosition();
+    // e is null for a telegraphed spawn (e.g. wall) — the real enemy doesn't
+    // exist synchronously yet, so guard before touching it.
     const e = spawnEnemyByName(this.scene, name, pos.x, pos.y);
-    if (e.setTravelTarget) e.setTravelTarget(pos.x, pos.y); // turrets station in place
+    if (e && e.setTravelTarget) e.setTravelTarget(pos.x, pos.y); // turrets station in place
     this.pushLog(`cheat: spawn ${name}`);
   }
 

@@ -98,6 +98,18 @@ export class BootScene extends Phaser.Scene {
     obg.strokeRect(1, 1, 78, 78);
     obg.generateTexture('obstacle-tex', 80, 80);
     obg.destroy();
+
+    // Wall enemy: a stationary rectangular blocker (1x2 grid cells — tall and
+    // narrow to read as distinct from the square gamespace Obstacle above).
+    const wallW = 40;
+    const wallH = 80;
+    const wg = this.add.graphics();
+    wg.fillStyle(COLORS.wall, 0.25);
+    wg.fillRect(0, 0, wallW, wallH);
+    wg.fillStyle(COLORS.wall, 1);
+    wg.fillRect(4, 4, wallW - 8, wallH - 8);
+    wg.generateTexture('wall-enemy-tex', wallW, wallH);
+    wg.destroy();
   }
 
   createTriangleTexture(key, color, size) {

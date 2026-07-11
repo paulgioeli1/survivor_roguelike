@@ -40,6 +40,10 @@ export class GameScene extends Phaser.Scene {
     // bullets, bombs) are created by the ability itself in its init().
     this.enemyBullets = this.physics.add.group();
     this.enemies = this.physics.add.group();
+    // Stationary blocker enemies (e.g. WallEnemy) also join this group; the
+    // collider below stops the player physically, separate from the
+    // enemies-overlap that handles contact damage/onPlayerContact().
+    this.enemyBlockers = this.physics.add.group();
     this.pickups = this.physics.add.group();
 
     const weapon = WEAPONS[this.weaponType];
@@ -54,6 +58,7 @@ export class GameScene extends Phaser.Scene {
     this.physics.add.overlap(this.player, this.pickups, this.handlePickupCollected, null, this);
     this.physics.add.overlap(this.player, this.enemyBullets, this.handleEnemyBulletHit, null, this);
     this.physics.add.collider(this.player, this.gamespaceBlockers);
+    this.physics.add.collider(this.player, this.enemyBlockers);
     this.physics.add.overlap(this.player, this.gamespaceObjects, (p, obj) => obj.onPlayerOverlap(p), null, this);
 
     // Demo: one static wall proving the gamespace pattern. Remove or replace
@@ -208,8 +213,7 @@ export class GameScene extends Phaser.Scene {
 
   handlePlayerHit(player, enemy) {
     if (this.player.invulnerable || this.gameOver) return;
-    enemy.destroy();
-    this.damagePlayer();
+    enemy.onPlayerContact();
   }
 
   damagePlayer() {

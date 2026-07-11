@@ -56,9 +56,19 @@ spawner, wires shared collisions, and delegates per-frame work. Keep it that way
 ## How to add things
 
 **An enemy:** create `entities/enemies/FooEnemy.js` extending `Enemy`; override
-`update(delta)` (movement) or `onDeath()` (e.g. revive) only if it differs. Add
-stats to `ENEMY_TIERS` in `balance.js` and one line to `ENEMY_REGISTRY`. The
-`Enemy` base gives you `takeDamage()`, `die()`, and a chasing `update()`.
+`update(delta)` (movement), `onDeath()` (e.g. revive), `setupBody()` (shape/body,
+e.g. a rectangular immovable blocker — see `WallEnemy`), or `onPlayerContact()`
+(what happens when the player touches it — default is contact damage; a
+stationary blocker no-ops here since physical blocking is a separate collider)
+only if it differs. Add stats to `ENEMY_TIERS` in `balance.js` and one line to
+`ENEMY_REGISTRY`. Two registry config flags: `blocksPlayer: true` also adds the
+enemy to `scene.enemyBlockers` (the collider group that physically stops the
+player — set `blocksPlayer` rather than wiring a collider yourself); `telegraphMs`
+delays the real spawn behind a pulsing warning outline for that many ms (see
+`spawnEnemyByName` in `entities/enemies/index.js` — works for any enemy, not
+just one type). A telegraphed spawn returns `null` synchronously; guard before
+touching the result (see `DebugSystem.spawnEnemy`). The `Enemy` base gives you
+`takeDamage()`, `die()`, and a chasing `update()`.
 
 **An ability:** create `abilities/FooAbility.js` extending `Ability`; implement
 the hooks it uses (`init`, `update`, `onLeftClick`, `onRightClick`, `onKill`,
