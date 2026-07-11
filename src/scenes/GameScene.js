@@ -1,8 +1,9 @@
 import Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT, FONT_FAMILY, MAX_HP } from '../config/constants.js';
 import { COLORS } from '../config/colors.js';
-import { ENEMY_TIERS, WEAPONS } from '../config/balance.js';
+import { WEAPONS } from '../config/balance.js';
 import { drawNeonGrid } from '../core/grid.js';
+import { SpawnSystem } from '../systems/SpawnSystem.js';
 
 export class GameScene extends Phaser.Scene {
   constructor() {
@@ -68,11 +69,7 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
-    this.spawnTimer = this.time.addEvent({
-      delay: 1000,
-      loop: true,
-      callback: () => this.spawnEnemy()
-    });
+    this.spawnSystem = new SpawnSystem(this);
 
     // Battery pickups only matter to the orb's charge-gated ultimate —
     // don't bother spawning them for weapons that can't use them.
@@ -83,18 +80,6 @@ export class GameScene extends Phaser.Scene {
         callback: () => this.spawnBatteryCell()
       });
     }
-
-    // Ranged turret enemies start showing up after the first 30s, then
-    // every 10s after that.
-    this.time.delayedCall(30000, () => {
-      if (this.gameOver) return;
-      this.spawnTurretEnemy();
-      this.turretSpawnTimer = this.time.addEvent({
-        delay: 10000,
-        loop: true,
-        callback: () => this.spawnTurretEnemy()
-      });
-    });
 
     this.initWeapon();
   }
@@ -330,7 +315,7 @@ export class GameScene extends Phaser.Scene {
       const enemyRadius = enemy.body.radius || 12;
       const dist = Phaser.Math.Distance.Between(x, y, enemy.x, enemy.y);
       if (dist <= radius + enemyRadius) {
-        this.damageEnemy(enemy, amount);
+        enemy.takeDamage(amount);
       }
     });
   }
@@ -404,7 +389,7 @@ export class GameScene extends Phaser.Scene {
   handleBulletHit(bullet, enemy) {
     if (!bullet.active) return;
     bullet.destroy();
-    this.damageEnemy(enemy, 1);
+    enemy.takeDamage(1);
   }
 
   // ---- Laser ----
@@ -477,7 +462,7 @@ export class GameScene extends Phaser.Scene {
       const dist = Phaser.Math.Distance.Between(enemy.x, enemy.y, closestX, closestY);
       if (dist <= hitWidth) {
         enemy.lastHitTime = now;
-        this.damageEnemy(enemy, amount);
+        enemy.takeDamage(amount);
       }
     });
   }
@@ -560,7 +545,7 @@ export class GameScene extends Phaser.Scene {
       const diff = Phaser.Math.Angle.Wrap(angleToEnemy - aim);
       const angularPadding = Math.atan2(enemyRadius, Math.max(dist, 1));
       if (Math.abs(diff) <= halfArc + angularPadding) {
-        this.damageEnemy(enemy, 1);
+        enemy.takeDamage(1);
       }
     });
 
@@ -655,112 +640,6 @@ export class GameScene extends Phaser.Scene {
     return { x, y };
   }
 
-  spawnEnemy() {
-    const tierStepIndex = Math.floor(this.elapsed / 15);
-    const redCount = Math.max(0, 60 - tierStepIndex);
-    const nonRed = 60 - redCount;
-    const greenCount = nonRed / 2;
-
-    const roll = Phaser.Math.Between(1, 60);
-    let tierName;
-    if (roll <= redCount) tierName = 'red';
-    else if (roll <= redCount + greenCount) tierName = 'green';
-    else tierName = 'blue';
-
-    const tier = ENEMY_TIERS[tierName];
-    const pos = this.getSpawnPosition();
-    const enemy = this.enemies.create(pos.x, pos.y, tier.texture);
-    enemy.tier = tierName;
-    enemy.hp = tier.hp;
-    enemy.speed = tier.speed;
-    enemy.lastHitTime = 0;
-
-    const r = enemy.displayWidth * 0.32;
-    enemy.body.setCircle(r, enemy.displayWidth / 2 - r, enemy.displayHeight / 2 - r);
-  }
-
-  spawnTurretEnemy() {
-    if (this.gameOver) return;
-    const margin = 24;
-    const edge = Phaser.Math.Between(0, 3); // 0=left, 1=right, 2=top, 3=bottom
-    let x;
-    let y;
-    let inwardAngle;
-    if (edge === 0) {
-      x = margin;
-      y = Phaser.Math.Between(margin, GAME_HEIGHT - margin);
-      inwardAngle = 0;
-    } else if (edge === 1) {
-      x = GAME_WIDTH - margin;
-      y = Phaser.Math.Between(margin, GAME_HEIGHT - margin);
-      inwardAngle = Math.PI;
-    } else if (edge === 2) {
-      x = Phaser.Math.Between(margin, GAME_WIDTH - margin);
-      y = margin;
-      inwardAngle = Math.PI / 2;
-    } else {
-      x = Phaser.Math.Between(margin, GAME_WIDTH - margin);
-      y = GAME_HEIGHT - margin;
-      inwardAngle = -Math.PI / 2;
-    }
-
-    // Keep the travel angle biased away from the spawn wall so it heads
-    // into the arena, then clamp the landing point to the play area so a
-    // long travel roll can't carry it through the opposite (or an
-    // adjacent) wall.
-    const angle = inwardAngle + Phaser.Math.FloatBetween(-Phaser.Math.DegToRad(70), Phaser.Math.DegToRad(70));
-    const travelDist = Phaser.Math.Between(150, 500);
-    const targetX = Phaser.Math.Clamp(x + Math.cos(angle) * travelDist, margin, GAME_WIDTH - margin);
-    const targetY = Phaser.Math.Clamp(y + Math.sin(angle) * travelDist, margin, GAME_HEIGHT - margin);
-
-    const tier = ENEMY_TIERS.turret;
-    const enemy = this.enemies.create(x, y, tier.texture);
-    enemy.tier = 'turret';
-    enemy.hp = tier.hp;
-    enemy.speed = tier.speed;
-    enemy.lastHitTime = 0;
-    enemy.kind = 'turret';
-    enemy.turretState = 'traveling';
-    enemy.targetX = targetX;
-    enemy.targetY = targetY;
-    enemy.shootTimer = 0;
-
-    const r = enemy.displayWidth * 0.32;
-    enemy.body.setCircle(r, enemy.displayWidth / 2 - r, enemy.displayHeight / 2 - r);
-  }
-
-  updateTurretEnemy(enemy, delta) {
-    if (enemy.turretState === 'traveling') {
-      const dist = Phaser.Math.Distance.Between(enemy.x, enemy.y, enemy.targetX, enemy.targetY);
-      if (dist <= 6) {
-        enemy.body.setVelocity(0, 0);
-        enemy.turretState = 'stationed';
-        enemy.shootTimer = 0;
-      } else {
-        this.physics.moveTo(enemy, enemy.targetX, enemy.targetY, enemy.speed);
-      }
-    } else {
-      enemy.body.setVelocity(0, 0);
-      enemy.shootTimer += delta;
-      if (enemy.shootTimer >= 2000) {
-        enemy.shootTimer -= 2000;
-        this.fireEnemyBullet(enemy);
-      }
-    }
-  }
-
-  fireEnemyBullet(enemy) {
-    const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, this.player.x, this.player.y);
-    const bullet = this.enemyBullets.create(enemy.x, enemy.y, 'enemy-bullet-tex');
-    bullet.body.setCircle(4, bullet.width / 2 - 4, bullet.height / 2 - 4);
-    bullet.body.setAllowGravity(false);
-    const speed = 260;
-    bullet.body.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
-    this.time.delayedCall(3000, () => {
-      if (bullet.active) bullet.destroy();
-    });
-  }
-
   handleEnemyBulletHit(player, bullet) {
     // Arcade Physics always calls overlap callbacks as (singleObject,
     // groupMember) — i.e. player first, bullet second — regardless of the
@@ -825,38 +704,22 @@ export class GameScene extends Phaser.Scene {
   }
 
   updateEnemies(delta) {
-    this.enemies.getChildren().forEach((enemy) => {
-      if (enemy.kind === 'turret') {
-        this.updateTurretEnemy(enemy, delta);
-      } else {
-        this.physics.moveToObject(enemy, this.player, enemy.speed);
-      }
-    });
+    // Polymorphic: each enemy subclass decides how it moves (base chases,
+    // TurretEnemy runs its own state machine).
+    this.enemies.getChildren().forEach((enemy) => enemy.update(delta));
   }
 
   handleOrbHit(orb, enemy) {
     const now = this.time.now;
     if (now - (enemy.lastHitTime || 0) < 350) return;
     enemy.lastHitTime = now;
-    this.damageEnemy(enemy, 1);
+    enemy.takeDamage(1);
   }
 
-  damageEnemy(enemy, amount) {
-    if (!enemy.active) return;
-    enemy.hp -= amount;
-    enemy.setTintFill(0xffffff);
-    this.time.delayedCall(80, () => {
-      if (enemy.active) enemy.clearTint();
-    });
-    if (enemy.hp <= 0) {
-      this.killEnemy(enemy);
-    }
-  }
-
-  killEnemy(enemy) {
-    const { x, y } = enemy;
-    this.spawnDeathParticles(x, y, ENEMY_TIERS[enemy.tier].color);
-    enemy.destroy();
+  // Called by Enemy.die() after its death visuals run — scene-wide kill
+  // bookkeeping (score, heal drops, orb growth). The enemy is destroyed by
+  // die() itself; x/y are its position at death.
+  onEnemyKilled(enemy, x, y) {
     this.killCount += 1;
     this.scoreText.setText(`kills  ${this.killCount}`);
 
@@ -953,13 +816,13 @@ export class GameScene extends Phaser.Scene {
         graphic.strokeCircle(this.player.x, this.player.y, tweenObj.radius);
 
         // Snapshot first — see fireLaser() for why iterating the live
-        // group array while damageEnemy() destroys entries causes skips.
+        // group array while takeDamage() destroys entries causes skips.
         this.enemies.getChildren().slice().forEach((enemy) => {
           if (!enemy.active || hitSet.has(enemy)) return;
           const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y);
           if (Math.abs(dist - tweenObj.radius) <= bandWidth) {
             hitSet.add(enemy);
-            this.damageEnemy(enemy, 1);
+            enemy.takeDamage(1);
           }
         });
       },
@@ -972,9 +835,8 @@ export class GameScene extends Phaser.Scene {
 
   endGame() {
     this.gameOver = true;
-    this.spawnTimer.remove();
+    this.spawnSystem.stop();
     if (this.batteryTimer) this.batteryTimer.remove();
-    if (this.turretSpawnTimer) this.turretSpawnTimer.remove();
     this.physics.pause();
     this.time.delayedCall(400, () => {
       this.scene.start('GameOver', { score: this.killCount, time: this.elapsed });
