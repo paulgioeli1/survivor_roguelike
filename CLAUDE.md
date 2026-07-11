@@ -70,6 +70,16 @@ just one type). A telegraphed spawn returns `null` synchronously; guard before
 touching the result (see `DebugSystem.spawnEnemy`). The `Enemy` base gives you
 `takeDamage()`, `die()`, and a chasing `update()`.
 
+**A multi-stage enemy** (splits/transforms instead of just dying, e.g.
+`SplitterEnemy`): override `die()` itself rather than `onDeath()` — the base
+`die()` pipeline (particles → kill count → destroy) assumes every death is a
+real kill, which isn't true for an intermediate stage. Keep the per-stage
+table (hp/texture per stage) in `balance.js` as its own export rather than
+forcing it into `ENEMY_TIERS`'s one-hp/one-texture shape. Only the registry's
+top-level entry needs registering; stage transitions construct further
+instances of the same class directly (see `SplitterEnemy.spawnChild`), since
+they aren't spawns a player/debug menu would ever pick by name.
+
 **An ability:** create `abilities/FooAbility.js` extending `Ability`; implement
 the hooks it uses (`init`, `update`, `onLeftClick`, `onRightClick`, `onKill`,
 `hudText`). Give it a projectile group + collider in `init()` if it needs one.

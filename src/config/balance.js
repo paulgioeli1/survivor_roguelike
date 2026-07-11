@@ -13,6 +13,19 @@ export const ENEMY_TIERS = {
   wall: { hp: 3, speed: 0, color: COLORS.wall, texture: 'wall-enemy-tex', blocksPlayer: true, telegraphMs: 1000 }
 };
 
+// SplitterEnemy has 3 stages (big/medium/small) instead of one tier, so it
+// doesn't fit the single-hp/texture shape of ENEMY_TIERS above — see
+// entities/enemies/SplitterEnemy.js for how this table is consumed.
+export const SPLITTER = {
+  color: COLORS.splitter,
+  speed: 60, // 50% of the red triangle chaser's speed (119)
+  stages: [
+    { hp: 3, texture: 'splitter-big-tex' },
+    { hp: 2, texture: 'splitter-medium-tex' },
+    { hp: 1, texture: 'splitter-small-tex' }
+  ]
+};
+
 export const WEAPONS = {
   orb: { name: 'Orb', color: COLORS.orb, description: 'Orbiting shields block enemies. Right click: charge shockwave.' },
   bomb: { name: 'Bomb', color: COLORS.bomb, description: 'Left click: drop a bomb (max 3). Right click: detonate them all.' },

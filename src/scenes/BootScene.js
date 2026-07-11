@@ -110,6 +110,13 @@ export class BootScene extends Phaser.Scene {
     wg.fillRect(4, 4, wallW - 8, wallH - 8);
     wg.generateTexture('wall-enemy-tex', wallW, wallH);
     wg.destroy();
+
+    // Splitter enemy: a square that splits into two smaller copies of itself
+    // when killed (except at its smallest stage). Same color across all three
+    // sizes — only the shape shrinks.
+    this.createSquareTexture('splitter-big-tex', COLORS.splitter, 56);
+    this.createSquareTexture('splitter-medium-tex', COLORS.splitter, 38);
+    this.createSquareTexture('splitter-small-tex', COLORS.splitter, 24);
   }
 
   createTriangleTexture(key, color, size) {
@@ -121,6 +128,18 @@ export class BootScene extends Phaser.Scene {
     g.fillTriangle(cx, pad - 4, pad - 4, total - pad + 4, total - pad + 4, total - pad + 4);
     g.fillStyle(color, 1);
     g.fillTriangle(cx, pad, pad, total - pad, total - pad, total - pad);
+    g.generateTexture(key, total, total);
+    g.destroy();
+  }
+
+  createSquareTexture(key, color, size) {
+    const pad = 6;
+    const total = size + pad * 2;
+    const g = this.add.graphics();
+    g.fillStyle(color, 0.25);
+    g.fillRect(0, 0, total, total);
+    g.fillStyle(color, 1);
+    g.fillRect(pad, pad, size, size);
     g.generateTexture(key, total, total);
     g.destroy();
   }

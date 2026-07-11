@@ -2,19 +2,24 @@
 // spawner reads this instead of a switch/if-else. To add an enemy: create its
 // class file, then add one line here (class + stats). Numeric tuning stays in
 // config/balance.js (ENEMY_TIERS); this file just binds a class to each tier.
-import { ENEMY_TIERS } from '../../config/balance.js';
+import { ENEMY_TIERS, SPLITTER } from '../../config/balance.js';
 import { RedEnemy } from './RedEnemy.js';
 import { GreenEnemy } from './GreenEnemy.js';
 import { BlueEnemy } from './BlueEnemy.js';
 import { TurretEnemy } from './TurretEnemy.js';
 import { WallEnemy } from './WallEnemy.js';
+import { SplitterEnemy } from './SplitterEnemy.js';
 
 export const ENEMY_REGISTRY = {
   red: { class: RedEnemy, ...ENEMY_TIERS.red },
   green: { class: GreenEnemy, ...ENEMY_TIERS.green },
   blue: { class: BlueEnemy, ...ENEMY_TIERS.blue },
   turret: { class: TurretEnemy, ...ENEMY_TIERS.turret },
-  wall: { class: WallEnemy, ...ENEMY_TIERS.wall }
+  wall: { class: WallEnemy, ...ENEMY_TIERS.wall },
+  // Only the starting (big) stage is registered — split-off medium/small
+  // instances are created directly by SplitterEnemy itself, not via this
+  // registry (see SplitterEnemy.spawnChild).
+  splitter: { class: SplitterEnemy, hp: SPLITTER.stages[0].hp, speed: SPLITTER.speed, color: SPLITTER.color, texture: SPLITTER.stages[0].texture }
 };
 
 function createEnemy(scene, def, name, x, y) {

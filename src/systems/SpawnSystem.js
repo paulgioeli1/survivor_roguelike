@@ -2,9 +2,9 @@ import Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT } from '../config/constants.js';
 import { spawnEnemyByName } from '../entities/enemies/index.js';
 
-// Owns enemy spawning: the 1s spawn loop + difficulty curve, and the ranged
-// turret spawner that kicks in after 30s. Reads the enemy registry, so adding
-// an enemy type never touches this file.
+// Owns enemy spawning: the 1s spawn loop + difficulty curve, the ranged
+// turret spawner that kicks in after 30s, and the splitter spawner every 15s.
+// Reads the enemy registry, so adding an enemy type never touches this file.
 export class SpawnSystem {
   constructor(scene) {
     this.scene = scene;
@@ -25,6 +25,12 @@ export class SpawnSystem {
         loop: true,
         callback: () => this.spawnTurretEnemy()
       });
+    });
+
+    this.splitterSpawnTimer = scene.time.addEvent({
+      delay: 15000,
+      loop: true,
+      callback: () => this.spawnSplitter()
     });
   }
 
@@ -84,8 +90,16 @@ export class SpawnSystem {
     enemy.setTravelTarget(targetX, targetY);
   }
 
+  spawnSplitter() {
+    const scene = this.scene;
+    if (scene.gameOver) return;
+    const pos = scene.getSpawnPosition();
+    spawnEnemyByName(scene, 'splitter', pos.x, pos.y);
+  }
+
   stop() {
     this.spawnTimer.remove();
     if (this.turretSpawnTimer) this.turretSpawnTimer.remove();
+    this.splitterSpawnTimer.remove();
   }
 }
