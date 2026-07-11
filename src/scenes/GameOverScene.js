@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { GAME_WIDTH, GAME_HEIGHT, FONT_FAMILY, drawNeonGrid } from '../constants.js';
+import { GAME_WIDTH, GAME_HEIGHT, FONT_FAMILY } from '../config/constants.js';
+import { drawNeonGrid } from '../core/grid.js';
 
 export class GameOverScene extends Phaser.Scene {
   constructor() {
