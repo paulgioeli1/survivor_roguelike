@@ -1,4 +1,7 @@
-class GameScene extends Phaser.Scene {
+import Phaser from 'phaser';
+import { GAME_WIDTH, GAME_HEIGHT, FONT_FAMILY, MAX_HP, COLORS, ENEMY_TIERS, WEAPONS, drawNeonGrid } from '../constants.js';
+
+export class GameScene extends Phaser.Scene {
   constructor() {
     super('Game');
   }

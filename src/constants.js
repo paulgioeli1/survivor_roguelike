@@ -1,9 +1,9 @@
-const GAME_WIDTH = 1800;
-const GAME_HEIGHT = 1200;
-const FONT_FAMILY = '"Orbitron", sans-serif';
-const MAX_HP = 5;
+export const GAME_WIDTH = 1800;
+export const GAME_HEIGHT = 1200;
+export const FONT_FAMILY = '"Orbitron", sans-serif';
+export const MAX_HP = 5;
 
-const COLORS = {
+export const COLORS = {
   grid: 0x14142c,
   player: 0x00e5ff,
   orb: 0xff2079,
@@ -20,14 +20,14 @@ const COLORS = {
   turret: 0xb84dff
 };
 
-const ENEMY_TIERS = {
+export const ENEMY_TIERS = {
   red: { hp: 1, speed: 119, color: COLORS.red, texture: 'enemy-red' },
   green: { hp: 2, speed: 77, color: COLORS.green, texture: 'enemy-green' },
   blue: { hp: 3, speed: 47, color: COLORS.blue, texture: 'enemy-blue' },
   turret: { hp: 5, speed: 110, color: COLORS.turret, texture: 'enemy-turret' }
 };
 
-const WEAPONS = {
+export const WEAPONS = {
   orb: { name: 'Orb', color: COLORS.orb, description: 'Orbiting shields block enemies. Right click: charge shockwave.' },
   bomb: { name: 'Bomb', color: COLORS.bomb, description: 'Left click: drop a bomb (max 3). Right click: detonate them all.' },
   gun: { name: 'Gun', color: COLORS.gun, description: 'Left click: fire a bullet (max 5). Right click: full-clip spread.' },
@@ -35,7 +35,7 @@ const WEAPONS = {
   sword: { name: 'Sword', color: COLORS.sword, description: 'Left click: slash toward the cursor. Right click: spinning slash.' }
 };
 
-function drawNeonGrid(scene, alpha) {
+export function drawNeonGrid(scene, alpha) {
   const g = scene.add.graphics();
   g.lineStyle(1, COLORS.grid, alpha);
   for (let x = 0; x <= GAME_WIDTH; x += 40) {

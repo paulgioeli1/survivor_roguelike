@@ -1,4 +1,7 @@
-class GameOverScene extends Phaser.Scene {
+import Phaser from 'phaser';
+import { GAME_WIDTH, GAME_HEIGHT, FONT_FAMILY, drawNeonGrid } from '../constants.js';
+
+export class GameOverScene extends Phaser.Scene {
   constructor() {
     super('GameOver');
   }

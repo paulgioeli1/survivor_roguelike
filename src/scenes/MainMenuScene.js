@@ -1,4 +1,7 @@
-class MainMenuScene extends Phaser.Scene {
+import Phaser from 'phaser';
+import { GAME_WIDTH, GAME_HEIGHT, FONT_FAMILY, WEAPONS, drawNeonGrid } from '../constants.js';
+
+export class MainMenuScene extends Phaser.Scene {
   constructor() {
     super('MainMenu');
   }

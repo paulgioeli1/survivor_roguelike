@@ -1,3 +1,9 @@
+import Phaser from 'phaser';
+import { GAME_WIDTH, GAME_HEIGHT } from './constants.js';
+import { MainMenuScene } from './scenes/MainMenuScene.js';
+import { GameScene } from './scenes/GameScene.js';
+import { GameOverScene } from './scenes/GameOverScene.js';
+
 function boot() {
   const config = {
     type: Phaser.AUTO,

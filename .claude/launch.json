@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "neon-wasteland",
-      "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8420"],
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
       "port": 8420
     }
   ]
