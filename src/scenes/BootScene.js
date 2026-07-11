@@ -89,6 +89,15 @@ export class BootScene extends Phaser.Scene {
     partG.fillRect(0, 0, 4, 4);
     partG.generateTexture('particle-tex', 4, 4);
     partG.destroy();
+
+    // Placeholder for gamespace obstacles (walls the player can't pass).
+    const obg = this.add.graphics();
+    obg.fillStyle(0x1a1d3a, 1);
+    obg.fillRect(0, 0, 80, 80);
+    obg.lineStyle(2, 0x3a4570, 1);
+    obg.strokeRect(1, 1, 78, 78);
+    obg.generateTexture('obstacle-tex', 80, 80);
+    obg.destroy();
   }
 
   createTriangleTexture(key, color, size) {

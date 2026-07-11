@@ -7,6 +7,7 @@ import { Hud } from '../systems/Hud.js';
 import { CameraController } from '../systems/CameraController.js';
 import { Player } from '../entities/Player.js';
 import { createAbility } from '../abilities/index.js';
+import { spawnGamespaceObjectByName } from '../entities/gamespace/index.js';
 
 // Thin coordinator: builds the world, player, HUD, camera, and spawner, wires
 // shared collisions, and delegates per-frame work to those pieces. Combat
@@ -41,9 +42,20 @@ export class GameScene extends Phaser.Scene {
     const weapon = WEAPONS[this.weaponType];
     this.hud = new Hud(this, weapon.name, weapon.color, this.player.stats.maxHp);
 
+    // Gamespace objects: blockers (walls) collide with the player; triggers
+    // (pools/chargers/etc.) overlap and fire onPlayerOverlap each frame.
+    this.gamespaceBlockers = this.physics.add.staticGroup();
+    this.gamespaceObjects = this.physics.add.group();
+
     this.physics.add.overlap(this.player, this.enemies, this.handlePlayerHit, null, this);
     this.physics.add.overlap(this.player, this.pickups, this.handlePickupCollected, null, this);
     this.physics.add.overlap(this.player, this.enemyBullets, this.handleEnemyBulletHit, null, this);
+    this.physics.add.collider(this.player, this.gamespaceBlockers);
+    this.physics.add.overlap(this.player, this.gamespaceObjects, (p, obj) => obj.onPlayerOverlap(p), null, this);
+
+    // Demo: one static wall proving the gamespace pattern. Remove or replace
+    // with real level layout later.
+    spawnGamespaceObjectByName(this, 'obstacle', GAME_WIDTH / 2 + 320, GAME_HEIGHT / 2);
 
     // Give the player its starting ability. addAbility() runs the ability's
     // init(), which wires up its own groups/collisions/HUD extras.
