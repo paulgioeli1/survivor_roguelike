@@ -4,6 +4,7 @@ import { COLORS } from '../config/colors.js';
 import { WEAPONS } from '../config/balance.js';
 import { drawNeonGrid } from '../core/grid.js';
 import { SpawnSystem } from '../systems/SpawnSystem.js';
+import { createAbility } from '../abilities/index.js';
 
 export class GameScene extends Phaser.Scene {
   constructor() {
@@ -22,17 +23,6 @@ export class GameScene extends Phaser.Scene {
     this.invulnerable = false;
     this.gameOver = false;
 
-    // Orb is the only weapon whose ultimate is gated by a charge meter
-    // (time + battery pickups). Every other weapon's ultimate is gated by
-    // its own ammo/energy resource instead — see initWeapon().
-    this.ultimateCooldown = 30000;
-    this.ultimateTimer = 0;
-    this.ultimateReady = false;
-    this.ultimateActive = false;
-
-    this.orbRadius = 66;
-    this.orbAngle = 0;
-
     this.physics.world.setBounds(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
     drawNeonGrid(this, 0.5);
@@ -42,37 +32,37 @@ export class GameScene extends Phaser.Scene {
     this.player.setCollideWorldBounds(true);
     this.player.body.setCircle(14, this.player.width / 2 - 14, this.player.height / 2 - 14);
 
-    this.orbGroup = this.physics.add.group();
-    this.bullets = this.physics.add.group();
-    this.bombs = this.physics.add.group();
+    // Shared groups the scene owns. Ability-specific projectile groups (orbs,
+    // bullets, bombs) are created by the ability itself in its init().
     this.enemyBullets = this.physics.add.group();
-
     this.enemies = this.physics.add.group();
     this.pickups = this.physics.add.group();
 
     this.keys = this.input.keyboard.addKeys('W,A,S,D');
 
-    this.physics.add.overlap(this.orbGroup, this.enemies, this.handleOrbHit, null, this);
-    this.physics.add.overlap(this.bullets, this.enemies, this.handleBulletHit, null, this);
-    this.physics.add.overlap(this.bombs, this.enemies, this.handleBombEnemyContact, null, this);
     this.physics.add.overlap(this.player, this.enemies, this.handlePlayerHit, null, this);
     this.physics.add.overlap(this.player, this.pickups, this.handlePickupCollected, null, this);
     this.physics.add.overlap(this.player, this.enemyBullets, this.handleEnemyBulletHit, null, this);
+
+    // The active ability. Input/update/HUD dispatch through it — no weaponType
+    // branching. Its init() wires up its own groups and collisions.
+    this.ability = createAbility(this.weaponType, this);
+    this.ability.init();
 
     this.input.mouse.disableContextMenu();
     this.input.on('pointerdown', (pointer) => {
       if (this.gameOver) return;
       if (pointer.rightButtonDown()) {
-        this.handleRightClick();
+        this.ability.onRightClick();
       } else if (pointer.leftButtonDown()) {
-        this.handleLeftClick();
+        this.ability.onLeftClick();
       }
     });
 
     this.spawnSystem = new SpawnSystem(this);
 
-    // Battery pickups only matter to the orb's charge-gated ultimate —
-    // don't bother spawning them for weapons that can't use them.
+    // Battery pickups only matter to the orb's charge-gated ultimate — don't
+    // bother spawning them for abilities that can't use them.
     if (this.weaponType === 'orb') {
       this.batteryTimer = this.time.addEvent({
         delay: 20000,
@@ -81,7 +71,7 @@ export class GameScene extends Phaser.Scene {
       });
     }
 
-    this.initWeapon();
+    this.updateResourceHud();
   }
 
   update(time, delta) {
@@ -91,11 +81,8 @@ export class GameScene extends Phaser.Scene {
     this.updateTimerText();
 
     this.handleMovement();
-    this.updateWeapon(delta);
+    this.ability.update(delta);
     this.updateEnemies(delta);
-    if (this.weaponType === 'orb') {
-      this.updateUltimateCharge(delta);
-    }
     this.updateResourceHud();
   }
 
@@ -127,22 +114,14 @@ export class GameScene extends Phaser.Scene {
       this.hpPips.push(pip);
     }
 
+    // Shared status line at the bottom-left; each ability supplies its text
+    // via hudText(). Abilities that need extra HUD (e.g. the laser bar) create
+    // it themselves in init().
     this.ultimateText = this.add.text(20, GAME_HEIGHT - 30, 'ultimate charging  0%', {
       fontFamily: FONT_FAMILY,
       fontSize: '14px',
       color: '#4c5580'
     });
-
-    if (this.weaponType === 'laser') {
-      this.laserEnergyBarWidth = 200;
-      const barX = 20;
-      const barY = GAME_HEIGHT - 46;
-      this.add.rectangle(barX, barY, this.laserEnergyBarWidth, 10, 0x1a1d3a)
-        .setOrigin(0, 0.5)
-        .setStrokeStyle(1, 0xffffff, 0.25);
-      this.laserEnergyBarFill = this.add.rectangle(barX, barY, this.laserEnergyBarWidth, 10, COLORS.laser)
-        .setOrigin(0, 0.5);
-    }
   }
 
   updateTimerText() {
@@ -156,6 +135,12 @@ export class GameScene extends Phaser.Scene {
     this.hpPips.forEach((pip, i) => {
       pip.setFillStyle(i < this.hp ? COLORS.player : 0x1a1d3a);
     });
+  }
+
+  updateResourceHud() {
+    const h = this.ability.hudText();
+    this.ultimateText.setText(h.text);
+    this.ultimateText.setColor(h.color);
   }
 
   handleMovement() {
@@ -172,143 +157,7 @@ export class GameScene extends Phaser.Scene {
     this.player.setVelocity(v.x * speed, v.y * speed);
   }
 
-  addOrb() {
-    const orb = this.physics.add.sprite(this.player.x, this.player.y, 'orb-tex');
-    orb.body.setCircle(5, 5, 5);
-    orb.body.setAllowGravity(false);
-    this.orbGroup.add(orb);
-  }
-
-  updateOrbs(delta) {
-    this.orbAngle += Phaser.Math.DegToRad(90) * (delta / 1000);
-    const orbs = this.orbGroup.getChildren();
-    const n = orbs.length;
-    orbs.forEach((orb, i) => {
-      const angle = this.orbAngle + i * (Math.PI * 2 / n);
-      const x = this.player.x + Math.cos(angle) * this.orbRadius;
-      const y = this.player.y + Math.sin(angle) * this.orbRadius;
-      orb.body.reset(x, y);
-    });
-  }
-
-  initWeapon() {
-    if (this.weaponType === 'orb') {
-      this.addOrb();
-    } else if (this.weaponType === 'bomb') {
-      this.bombInventoryMax = 3;
-      this.bombInventory = this.bombInventoryMax;
-      this.bombRegenTimer = 0;
-      this.bombRegenInterval = 3000;
-      this.bombBlastRadius = 40; // ~2 grid cells (grid is 40px)
-    } else if (this.weaponType === 'gun') {
-      this.bulletInventoryMax = 5;
-      this.bulletInventory = this.bulletInventoryMax;
-      this.bulletRegenTimer = 0;
-      this.bulletRegenInterval = 1600; // 20% faster than the original 2000ms
-    } else if (this.weaponType === 'laser') {
-      this.laserEnergyMax = 100;
-      this.laserEnergy = this.laserEnergyMax;
-      this.laserFillDuration = 10000;
-      this.laserDrainDuration = 2500; // half the original 5000ms of continuous fire
-      this.laserLockedOut = false;
-      this.laserUltimateActive = false;
-      this.laserBeamGraphic = null;
-      this.laserBeamFiring = false;
-      this.lastLaserAngle = 0;
-    } else if (this.weaponType === 'sword') {
-      this.swordSwingCooldown = 450;
-      this.swordSwingTimer = 0;
-      this.swordUltimateCooldown = 9000;
-      this.swordUltimateTimer = 0;
-      this.swordUltimateActive = false;
-    }
-    this.updateResourceHud();
-  }
-
-  updateWeapon(delta) {
-    if (this.weaponType === 'orb') {
-      this.updateOrbs(delta);
-    } else if (this.weaponType === 'bomb') {
-      this.updateBombRegen(delta);
-    } else if (this.weaponType === 'gun') {
-      this.updateBulletRegen(delta);
-    } else if (this.weaponType === 'laser') {
-      this.updateLaserEnergy(delta);
-    } else if (this.weaponType === 'sword') {
-      this.updateSwordCooldowns(delta);
-    }
-  }
-
-  handleLeftClick() {
-    if (this.weaponType === 'bomb') {
-      this.placeBomb();
-    } else if (this.weaponType === 'gun') {
-      this.fireSingleBullet();
-    } else if (this.weaponType === 'sword') {
-      this.trySwingSword();
-    }
-    // Orb has no left-click action; laser fires continuously while held,
-    // handled every frame in updateLaserEnergy() instead of on click.
-  }
-
-  handleRightClick() {
-    if (this.weaponType === 'orb') {
-      if (this.ultimateReady && !this.ultimateActive) this.triggerUltimate();
-    } else if (this.weaponType === 'bomb') {
-      this.detonateAllBombs();
-    } else if (this.weaponType === 'gun') {
-      this.fireGunUltimate();
-    } else if (this.weaponType === 'laser') {
-      this.fireLaserUltimate();
-    } else if (this.weaponType === 'sword') {
-      this.trySpinSlash();
-    }
-  }
-
-  aimAngle() {
-    const pointer = this.input.activePointer;
-    return Phaser.Math.Angle.Between(this.player.x, this.player.y, pointer.x, pointer.y);
-  }
-
-  // ---- Bomb ----
-
-  placeBomb() {
-    if (this.bombInventory <= 0) return;
-    this.bombInventory -= 1;
-    const bomb = this.bombs.create(this.player.x, this.player.y, 'bomb-tex');
-    bomb.body.setCircle(6, bomb.width / 2 - 6, bomb.height / 2 - 6);
-    bomb.body.setAllowGravity(false);
-    bomb.body.setImmovable(true);
-  }
-
-  updateBombRegen(delta) {
-    if (this.bombInventory >= this.bombInventoryMax) return;
-    this.bombRegenTimer += delta;
-    if (this.bombRegenTimer >= this.bombRegenInterval) {
-      this.bombRegenTimer -= this.bombRegenInterval;
-      this.bombInventory = Math.min(this.bombInventoryMax, this.bombInventory + 1);
-    }
-  }
-
-  handleBombEnemyContact(bomb, enemy) {
-    this.explodeBomb(bomb);
-  }
-
-  explodeBomb(bomb) {
-    if (!bomb.active) return;
-    const { x, y } = bomb;
-    bomb.destroy();
-    this.damageEnemiesInRadius(x, y, this.bombBlastRadius, 1);
-    this.spawnExplosionEffect(x, y, this.bombBlastRadius);
-  }
-
-  detonateAllBombs() {
-    // Snapshot first — see fireLaser()-style comments elsewhere: exploding
-    // one bomb destroys it and shifts the live group array, which would
-    // skip the next bomb if we iterated that array directly.
-    this.bombs.getChildren().slice().forEach((bomb) => this.explodeBomb(bomb));
-  }
-
+  // Shared combat helper used by the bomb and sword abilities.
   damageEnemiesInRadius(x, y, radius, amount) {
     this.enemies.getChildren().slice().forEach((enemy) => {
       if (!enemy.active) return;
@@ -318,313 +167,6 @@ export class GameScene extends Phaser.Scene {
         enemy.takeDamage(amount);
       }
     });
-  }
-
-  spawnExplosionEffect(x, y, radius) {
-    const emitter = this.add.particles(0, 0, 'particle-tex', {
-      tint: COLORS.bomb,
-      speed: { min: 80, max: 220 },
-      lifespan: 400,
-      scale: { start: 2, end: 0 },
-      blendMode: 'ADD',
-      emitting: false
-    });
-    emitter.explode(20, x, y);
-    this.time.delayedCall(450, () => emitter.destroy());
-
-    const g = this.add.graphics();
-    g.lineStyle(4, COLORS.bomb, 0.9);
-    g.strokeCircle(x, y, radius);
-    this.tweens.add({
-      targets: g,
-      alpha: 0,
-      duration: 300,
-      onComplete: () => g.destroy()
-    });
-  }
-
-  // ---- Gun ----
-
-  fireSingleBullet() {
-    if (this.bulletInventory <= 0) return;
-    this.bulletInventory -= 1;
-    this.spawnBullet(this.aimAngle());
-  }
-
-  updateBulletRegen(delta) {
-    if (this.bulletInventory >= this.bulletInventoryMax) return;
-    this.bulletRegenTimer += delta;
-    if (this.bulletRegenTimer >= this.bulletRegenInterval) {
-      this.bulletRegenTimer -= this.bulletRegenInterval;
-      this.bulletInventory = Math.min(this.bulletInventoryMax, this.bulletInventory + 1);
-    }
-  }
-
-  fireGunUltimate() {
-    if (this.bulletInventory < this.bulletInventoryMax) return;
-    const baseAngle = this.aimAngle();
-    const bulletCount = this.bulletInventoryMax;
-    const spreadStep = Phaser.Math.DegToRad(5);
-    for (let i = 0; i < bulletCount; i++) {
-      const offset = (i - (bulletCount - 1) / 2) * spreadStep;
-      this.spawnBullet(baseAngle + offset);
-    }
-    this.bulletInventory = 0;
-  }
-
-  spawnBullet(angle) {
-    // Velocity must be set AFTER the sprite is added to the physics
-    // group — Arcade Physics Group.create() adds it immediately, but
-    // group.add() on an existing sprite resets its velocity to 0.
-    const bullet = this.bullets.create(this.player.x, this.player.y, 'bullet-tex');
-    bullet.body.setCircle(4, bullet.width / 2 - 4, bullet.height / 2 - 4);
-    bullet.body.setAllowGravity(false);
-    const speed = 480;
-    bullet.body.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
-    this.time.delayedCall(2200, () => {
-      if (bullet.active) bullet.destroy();
-    });
-  }
-
-  handleBulletHit(bullet, enemy) {
-    if (!bullet.active) return;
-    bullet.destroy();
-    enemy.takeDamage(1);
-  }
-
-  // ---- Laser ----
-
-  updateLaserEnergy(delta) {
-    const pointer = this.input.activePointer;
-    const wantsFire = !this.laserLockedOut && !this.laserUltimateActive
-      && this.laserEnergy > 0 && pointer.leftButtonDown();
-
-    if (wantsFire) {
-      this.laserEnergy = Math.max(0, this.laserEnergy - (this.laserEnergyMax / this.laserDrainDuration) * delta);
-      this.fireLaserTick();
-      if (this.laserEnergy <= 0) {
-        this.laserEnergy = 0;
-        this.laserLockedOut = true;
-        this.clearLaserBeam();
-      }
-    } else {
-      if (!pointer.leftButtonDown()) this.clearLaserBeam();
-      this.laserBeamFiring = false;
-      this.laserEnergy = Math.min(this.laserEnergyMax, this.laserEnergy + (this.laserEnergyMax / this.laserFillDuration) * delta);
-      if (this.laserLockedOut && this.laserEnergy >= this.laserEnergyMax) {
-        this.laserLockedOut = false;
-      }
-    }
-  }
-
-  fireLaserTick() {
-    const angle = this.aimAngle();
-    this.drawLaserBeam(angle, 4, COLORS.laser, 0.85);
-
-    // A held beam re-reads the mouse angle fresh every frame and only
-    // tests a single instantaneous ray. Whip the mouse fast enough and the
-    // angle jumps several degrees between two consecutive frames, so an
-    // enemy sitting in the gap between last frame's ray and this frame's
-    // ray never gets tested against either one — the beam visually sweeps
-    // through it but the collision check skips it entirely. Sweep-test a
-    // handful of interpolated angles between last frame's aim and this
-    // frame's aim so the swept arc has no gaps, regardless of spin speed.
-    const prevAngle = this.laserBeamFiring ? this.lastLaserAngle : angle;
-    const sweepDelta = Phaser.Math.Angle.Wrap(angle - prevAngle);
-    const steps = Phaser.Math.Clamp(Math.ceil(Math.abs(sweepDelta) / Phaser.Math.DegToRad(2)), 1, 48);
-    for (let i = 0; i <= steps; i++) {
-      const sampleAngle = prevAngle + sweepDelta * (i / steps);
-      // Continuous fire needs a per-enemy cooldown (like the orb's own hit
-      // throttle) so a held beam deals steady damage-over-time instead of
-      // one hit per rendered frame; it also stops a single sweep from
-      // re-hitting the same enemy at multiple sampled sub-angles.
-      this.damageEnemiesInBeam(sampleAngle, 10, 1, 120);
-    }
-
-    this.lastLaserAngle = angle;
-    this.laserBeamFiring = true;
-  }
-
-  damageEnemiesInBeam(angle, hitWidth, amount, hitCooldownMs) {
-    const dirX = Math.cos(angle);
-    const dirY = Math.sin(angle);
-    const now = this.time.now;
-
-    this.enemies.getChildren().slice().forEach((enemy) => {
-      if (!enemy.active) return;
-      if (hitCooldownMs && now - (enemy.lastHitTime || 0) < hitCooldownMs) return;
-      const px = enemy.x - this.player.x;
-      const py = enemy.y - this.player.y;
-      const t = px * dirX + py * dirY;
-      if (t < 0) return;
-      const closestX = this.player.x + dirX * t;
-      const closestY = this.player.y + dirY * t;
-      const dist = Phaser.Math.Distance.Between(enemy.x, enemy.y, closestX, closestY);
-      if (dist <= hitWidth) {
-        enemy.lastHitTime = now;
-        enemy.takeDamage(amount);
-      }
-    });
-  }
-
-  drawLaserBeam(angle, thickness, color, alpha) {
-    const dirX = Math.cos(angle);
-    const dirY = Math.sin(angle);
-    const maxLen = Math.hypot(GAME_WIDTH, GAME_HEIGHT);
-    if (!this.laserBeamGraphic) this.laserBeamGraphic = this.add.graphics();
-    const g = this.laserBeamGraphic;
-    g.clear();
-    g.setPosition(this.player.x, this.player.y);
-    g.lineStyle(thickness, color, alpha);
-    g.lineBetween(0, 0, dirX * maxLen, dirY * maxLen);
-  }
-
-  clearLaserBeam() {
-    if (this.laserBeamGraphic) this.laserBeamGraphic.clear();
-  }
-
-  fireLaserUltimate() {
-    if (this.laserEnergy < this.laserEnergyMax || this.laserLockedOut || this.laserUltimateActive) return;
-    this.laserUltimateActive = true;
-
-    const angle = this.aimAngle();
-    // "Kills everything in its path" — a huge damage number rather than a
-    // special-cased instakill so it still plays through the normal hit
-    // flash / death particles / kill-count bookkeeping.
-    this.damageEnemiesInBeam(angle, 100, 9999, 0);
-
-    const dirX = Math.cos(angle);
-    const dirY = Math.sin(angle);
-    const maxLen = Math.hypot(GAME_WIDTH, GAME_HEIGHT);
-    const g = this.add.graphics();
-    g.setPosition(this.player.x, this.player.y);
-    g.lineStyle(40, COLORS.laser, 0.9);
-    g.lineBetween(0, 0, dirX * maxLen, dirY * maxLen);
-    this.tweens.add({
-      targets: g,
-      alpha: 0,
-      duration: 300,
-      onComplete: () => g.destroy()
-    });
-
-    this.laserEnergy = 0;
-    this.laserLockedOut = true;
-    this.laserUltimateActive = false;
-  }
-
-  // ---- Sword ----
-
-  trySwingSword() {
-    if (this.swordSwingTimer > 0) return;
-    this.swingSword();
-    this.swordSwingTimer = this.swordSwingCooldown;
-  }
-
-  updateSwordCooldowns(delta) {
-    if (this.swordSwingTimer > 0) this.swordSwingTimer = Math.max(0, this.swordSwingTimer - delta);
-    if (this.swordUltimateTimer > 0) this.swordUltimateTimer = Math.max(0, this.swordUltimateTimer - delta);
-  }
-
-  swingSword() {
-    const aim = this.aimAngle();
-    const halfArc = Phaser.Math.DegToRad(30);
-    const range = 90;
-
-    // See the comment in fireLaser(): snapshot the array first so killing
-    // an enemy mid-swing doesn't shift the live group array and cause the
-    // next enemy in the arc to be skipped.
-    this.enemies.getChildren().slice().forEach((enemy) => {
-      if (!enemy.active) return;
-      // Pad the range/angle checks by the enemy's own collision radius so a
-      // sprite that's visually touching the wedge still counts as a hit,
-      // rather than only checking its exact center point.
-      const enemyRadius = enemy.body.radius || 12;
-      const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y);
-      if (dist > range + enemyRadius) return;
-      const angleToEnemy = Phaser.Math.Angle.Between(this.player.x, this.player.y, enemy.x, enemy.y);
-      const diff = Phaser.Math.Angle.Wrap(angleToEnemy - aim);
-      const angularPadding = Math.atan2(enemyRadius, Math.max(dist, 1));
-      if (Math.abs(diff) <= halfArc + angularPadding) {
-        enemy.takeDamage(1);
-      }
-    });
-
-    const g = this.add.graphics();
-    g.setPosition(this.player.x, this.player.y);
-    g.fillStyle(COLORS.sword, 0.5);
-    g.slice(0, 0, range, aim - halfArc, aim + halfArc, false);
-    g.fillPath();
-    this.tweens.add({
-      targets: g,
-      alpha: 0,
-      duration: 180,
-      onUpdate: () => g.setPosition(this.player.x, this.player.y),
-      onComplete: () => g.destroy()
-    });
-  }
-
-  trySpinSlash() {
-    if (this.swordUltimateTimer > 0 || this.swordUltimateActive) return;
-    this.spinSlash();
-    this.swordUltimateTimer = this.swordUltimateCooldown;
-  }
-
-  spinSlash() {
-    this.swordUltimateActive = true;
-    const radius = 150;
-    const tickInterval = 150;
-    const totalDuration = 900;
-
-    const g = this.add.graphics();
-    g.setPosition(this.player.x, this.player.y);
-    g.lineStyle(6, COLORS.sword, 0.8);
-    g.strokeCircle(0, 0, radius);
-
-    const tick = () => this.damageEnemiesInRadius(this.player.x, this.player.y, radius, 1);
-    tick();
-    this.time.addEvent({
-      delay: tickInterval,
-      repeat: Math.floor(totalDuration / tickInterval) - 1,
-      callback: tick
-    });
-
-    this.tweens.add({
-      targets: g,
-      alpha: 0,
-      duration: totalDuration,
-      onUpdate: () => g.setPosition(this.player.x, this.player.y),
-      onComplete: () => {
-        g.destroy();
-        this.swordUltimateActive = false;
-      }
-    });
-  }
-
-  // ---- Shared resource HUD ----
-
-  updateResourceHud() {
-    if (this.weaponType === 'orb') return; // handled by updateUltimateCharge()
-
-    if (this.weaponType === 'bomb') {
-      this.ultimateText.setText(`bombs  ${this.bombInventory}/${this.bombInventoryMax}   |   right click: detonate all`);
-      this.ultimateText.setColor(this.bombInventory > 0 ? '#ffb347' : '#4c5580');
-    } else if (this.weaponType === 'gun') {
-      const full = this.bulletInventory >= this.bulletInventoryMax;
-      this.ultimateText.setText(`bullets  ${this.bulletInventory}/${this.bulletInventoryMax}${full ? '   |   right click: spread ultimate' : ''}`);
-      this.ultimateText.setColor(full ? '#fff275' : '#4c5580');
-    } else if (this.weaponType === 'laser') {
-      const pct = Math.floor(this.laserEnergy);
-      const label = this.laserLockedOut ? 'recharging' : (pct >= 100 ? 'full   |   right click: overcharge beam' : `${pct}%`);
-      this.ultimateText.setText(`laser energy  ${label}`);
-      this.ultimateText.setColor(this.laserLockedOut ? '#4c5580' : '#b15bff');
-      const ratio = this.laserEnergy / this.laserEnergyMax;
-      this.laserEnergyBarFill.width = this.laserEnergyBarWidth * ratio;
-      this.laserEnergyBarFill.setFillStyle(this.laserLockedOut ? 0x4c5580 : COLORS.laser);
-    } else if (this.weaponType === 'sword') {
-      const ready = this.swordUltimateTimer <= 0;
-      this.ultimateText.setText(ready ? 'spin slash ready  (right click)' : `spin slash  ${(this.swordUltimateTimer / 1000).toFixed(1)}s`);
-      this.ultimateText.setColor(ready ? '#dfe8ff' : '#4c5580');
-    }
   }
 
   getSpawnPosition() {
@@ -642,11 +184,8 @@ export class GameScene extends Phaser.Scene {
 
   handleEnemyBulletHit(player, bullet) {
     // Arcade Physics always calls overlap callbacks as (singleObject,
-    // groupMember) — i.e. player first, bullet second — regardless of the
-    // order the two are passed into physics.add.overlap(). Getting this
-    // backwards meant `bullet.destroy()` was actually destroying the
-    // player sprite (nulling its physics body), which crashed the very
-    // next frame's movement code with the game silently frozen.
+    // groupMember) — player first, bullet second — regardless of argument
+    // order. Getting this backwards would destroy the player sprite instead.
     if (!bullet.active) return;
     bullet.destroy();
     if (this.invulnerable || this.gameOver) return;
@@ -676,7 +215,7 @@ export class GameScene extends Phaser.Scene {
     if (pickup.pickupType === 'heal') {
       this.applyHeal();
     } else if (pickup.pickupType === 'battery') {
-      this.applyBatteryCharge();
+      this.ability.onBatteryPickup();
     }
     pickup.destroy();
   }
@@ -688,37 +227,15 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  applyBatteryCharge() {
-    if (this.weaponType !== 'orb') return;
-    if (this.ultimateReady || this.ultimateActive) return;
-    const chargeAmount = this.ultimateCooldown * 0.1;
-    this.ultimateTimer = Math.min(this.ultimateTimer + chargeAmount, this.ultimateCooldown);
-    if (this.ultimateTimer >= this.ultimateCooldown) {
-      this.ultimateReady = true;
-      this.ultimateText.setText('ultimate ready  (right click)');
-      this.ultimateText.setColor('#ffffff');
-    } else {
-      const pct = Math.floor((this.ultimateTimer / this.ultimateCooldown) * 100);
-      this.ultimateText.setText(`ultimate charging  ${pct}%`);
-    }
-  }
-
   updateEnemies(delta) {
     // Polymorphic: each enemy subclass decides how it moves (base chases,
     // TurretEnemy runs its own state machine).
     this.enemies.getChildren().forEach((enemy) => enemy.update(delta));
   }
 
-  handleOrbHit(orb, enemy) {
-    const now = this.time.now;
-    if (now - (enemy.lastHitTime || 0) < 350) return;
-    enemy.lastHitTime = now;
-    enemy.takeDamage(1);
-  }
-
   // Called by Enemy.die() after its death visuals run — scene-wide kill
-  // bookkeeping (score, heal drops, orb growth). The enemy is destroyed by
-  // die() itself; x/y are its position at death.
+  // bookkeeping (score, heal drops), then the ability's own on-kill hook
+  // (e.g. orb growth). The enemy is destroyed by die() itself.
   onEnemyKilled(enemy, x, y) {
     this.killCount += 1;
     this.scoreText.setText(`kills  ${this.killCount}`);
@@ -727,12 +244,7 @@ export class GameScene extends Phaser.Scene {
       this.spawnHealPickup(x, y);
     }
 
-    if (this.weaponType === 'orb') {
-      const targetOrbCount = 1 + Math.floor(this.killCount / 50);
-      if (targetOrbCount > this.orbGroup.getLength()) {
-        this.addOrb();
-      }
-    }
+    this.ability.onKill(this.killCount);
   }
 
   spawnDeathParticles(x, y, color) {
@@ -775,60 +287,6 @@ export class GameScene extends Phaser.Scene {
       onComplete: () => {
         this.player.alpha = 1;
         this.invulnerable = false;
-      }
-    });
-  }
-
-  updateUltimateCharge(delta) {
-    if (this.ultimateReady || this.ultimateActive) return;
-    this.ultimateTimer += delta;
-    if (this.ultimateTimer >= this.ultimateCooldown) {
-      this.ultimateReady = true;
-      this.ultimateText.setText('ultimate ready  (right click)');
-      this.ultimateText.setColor('#ffffff');
-    } else {
-      const pct = Math.floor((this.ultimateTimer / this.ultimateCooldown) * 100);
-      this.ultimateText.setText(`ultimate charging  ${pct}%`);
-    }
-  }
-
-  triggerUltimate() {
-    this.ultimateReady = false;
-    this.ultimateActive = true;
-    this.ultimateTimer = 0;
-    this.ultimateText.setColor('#4c5580');
-
-    const hitSet = new Set();
-    const maxRadius = Math.max(GAME_WIDTH, GAME_HEIGHT);
-    const bandWidth = 24;
-    const graphic = this.add.graphics();
-    const tweenObj = { radius: 0 };
-
-    this.tweens.add({
-      targets: tweenObj,
-      radius: maxRadius,
-      duration: 3000,
-      ease: 'Cubic.Out',
-      onUpdate: () => {
-        graphic.clear();
-        const alpha = 1 - (tweenObj.radius / maxRadius) * 0.6;
-        graphic.lineStyle(6, COLORS.ultimate, alpha);
-        graphic.strokeCircle(this.player.x, this.player.y, tweenObj.radius);
-
-        // Snapshot first — see fireLaser() for why iterating the live
-        // group array while takeDamage() destroys entries causes skips.
-        this.enemies.getChildren().slice().forEach((enemy) => {
-          if (!enemy.active || hitSet.has(enemy)) return;
-          const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y);
-          if (Math.abs(dist - tweenObj.radius) <= bandWidth) {
-            hitSet.add(enemy);
-            enemy.takeDamage(1);
-          }
-        });
-      },
-      onComplete: () => {
-        graphic.destroy();
-        this.ultimateActive = false;
       }
     });
   }
