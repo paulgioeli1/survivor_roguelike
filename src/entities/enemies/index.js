@@ -31,19 +31,27 @@ function createEnemy(scene, def, name, x, y) {
   return enemy;
 }
 
-// Draws a pulsing outline (matching the enemy's real shape/color) at (x,y),
-// then creates the real enemy there once def.telegraphMs elapses. Any
-// registry entry can opt into this by setting telegraphMs — nothing here is
-// specific to one enemy type.
+// Draws a filled, high-contrast warning block (matching the enemy's real
+// shape/color/size) at (x,y), then creates the real enemy there once
+// def.telegraphMs elapses. Any registry entry can opt into this by setting
+// telegraphMs — nothing here is specific to one enemy type.
+//
+// A thin outline alone reads as invisible on a busy, randomly-placed spawn —
+// the player is rarely already looking at the exact spot — so this uses a
+// solid semi-transparent fill plus a thick border and a strong alpha pulse to
+// make sure it's noticeable at a glance, not just technically present.
 function spawnWithTelegraph(scene, def, name, x, y) {
   const frame = scene.textures.get(def.texture).source[0];
   const w = frame.width;
   const h = frame.height;
 
   const g = scene.add.graphics();
-  g.lineStyle(3, def.color, 1);
+  g.fillStyle(def.color, 0.4);
+  g.fillRect(x - w / 2, y - h / 2, w, h);
+  g.lineStyle(4, def.color, 1);
   g.strokeRect(x - w / 2, y - h / 2, w, h);
-  const pulse = scene.tweens.add({ targets: g, alpha: 0.15, duration: 180, yoyo: true, repeat: -1 });
+
+  const pulse = scene.tweens.add({ targets: g, alpha: 0.2, duration: 220, yoyo: true, repeat: -1 });
 
   scene.time.delayedCall(def.telegraphMs, () => {
     pulse.stop();
