@@ -1,0 +1,28 @@
+{
+  "name": "survivor_roguelike",
+  "version": "1.0.0",
+  "description": "Neon wasteland survivor roguelike",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 8420",
+    "build": "vite build",
+    "preview": "vite preview --port 8420"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/paulgioeli1/survivor_roguelike.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/paulgioeli1/survivor_roguelike/issues"
+  },
+  "homepage": "https://github.com/paulgioeli1/survivor_roguelike#readme",
+  "dependencies": {
+    "phaser": "^3.80.1"
+  },
+  "devDependencies": {
+    "vite": "^8.1.4"
+  }
+}
