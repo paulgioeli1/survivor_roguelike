@@ -3,8 +3,9 @@ import { GAME_WIDTH, GAME_HEIGHT } from '../config/constants.js';
 import { spawnEnemyByName } from '../entities/enemies/index.js';
 
 // Owns enemy spawning: the 1s spawn loop + difficulty curve, the ranged
-// turret spawner that kicks in after 30s, and the splitter spawner every 15s.
-// Reads the enemy registry, so adding an enemy type never touches this file.
+// turret spawner that kicks in after 30s, the splitter spawner every 15s, and
+// the wall spawner every 20s. Reads the enemy registry, so adding an enemy
+// type never touches this file.
 export class SpawnSystem {
   constructor(scene) {
     this.scene = scene;
@@ -31,6 +32,12 @@ export class SpawnSystem {
       delay: 15000,
       loop: true,
       callback: () => this.spawnSplitter()
+    });
+
+    this.wallSpawnTimer = scene.time.addEvent({
+      delay: 20000,
+      loop: true,
+      callback: () => this.spawnWall()
     });
   }
 
@@ -97,9 +104,17 @@ export class SpawnSystem {
     spawnEnemyByName(scene, 'splitter', pos.x, pos.y);
   }
 
+  spawnWall() {
+    const scene = this.scene;
+    if (scene.gameOver) return;
+    const pos = scene.getSpawnPosition();
+    spawnEnemyByName(scene, 'wall', pos.x, pos.y); // telegraphed — see spawnWithTelegraph()
+  }
+
   stop() {
     this.spawnTimer.remove();
     if (this.turretSpawnTimer) this.turretSpawnTimer.remove();
     this.splitterSpawnTimer.remove();
+    this.wallSpawnTimer.remove();
   }
 }

@@ -10,7 +10,7 @@ export const ENEMY_TIERS = {
   // Stationary blocker: no speed (never chases), blocksPlayer routes it into
   // the physical collider group, telegraphMs delays its real spawn behind a
   // warning animation. See entities/enemies/WallEnemy.js.
-  wall: { hp: 3, speed: 0, color: COLORS.wall, texture: 'wall-enemy-tex', blocksPlayer: true, telegraphMs: 1000 }
+  wall: { hp: 3, speed: 0, color: COLORS.wall, texture: 'wall-enemy-tex', blocksPlayer: true, telegraphMs: 1500 }
 };
 
 // SplitterEnemy has 3 stages (big/medium/small) instead of one tier, so it
