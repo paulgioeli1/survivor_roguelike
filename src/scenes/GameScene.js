@@ -9,6 +9,8 @@ import { Player } from '../entities/Player.js';
 import { createAbility } from '../abilities/index.js';
 import { spawnGamespaceObjectByName } from '../entities/gamespace/index.js';
 import { DebugSystem } from '../systems/DebugSystem.js';
+import { Analytics } from '../systems/Analytics.js';
+import { saveRun } from '../systems/RunSaver.js';
 
 // Thin coordinator: builds the world, player, HUD, camera, and spawner, wires
 // shared collisions, and delegates per-frame work to those pieces. Combat
@@ -84,6 +86,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.updateResourceHud();
+    Analytics.gameStart(this.weaponType);
 
     // Dev-only debug/cheat overlay (backtick to toggle). Gated by Vite's DEV
     // flag so it never ships in a production build.
@@ -223,6 +226,10 @@ export class GameScene extends Phaser.Scene {
     this.spawnSystem.stop();
     if (this.batteryTimer) this.batteryTimer.remove();
     this.physics.pause();
+
+    Analytics.gameOver(this.weaponType, this.killCount, this.elapsed);
+    saveRun({ weapon: this.weaponType, killCount: this.killCount, elapsedSeconds: this.elapsed });
+
     this.time.delayedCall(400, () => {
       this.scene.start('GameOver', { score: this.killCount, time: this.elapsed });
     });
