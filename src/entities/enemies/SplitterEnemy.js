@@ -1,5 +1,7 @@
+import Phaser from 'phaser';
 import { Enemy } from './Enemy.js';
 import { SPLITTER } from '../../config/balance.js';
+import { GAME_WIDTH, GAME_HEIGHT } from '../../config/constants.js';
 
 const MAX_STAGE = SPLITTER.stages.length - 1;
 
@@ -29,13 +31,21 @@ export class SplitterEnemy extends Enemy {
   split() {
     const nextStage = this.stage + 1;
     const stageConfig = SPLITTER.stages[nextStage];
-    const offset = this.displayWidth * 0.35;
-    this.spawnChild(nextStage, stageConfig, this.x - offset, this.y);
-    this.spawnChild(nextStage, stageConfig, this.x + offset, this.y);
+    // A wide, randomized separation so the two children clearly fly apart
+    // instead of clumping in a tight blob at the parent's position — and a
+    // random angle each time so a split doesn't always read as a straight
+    // left-right line.
+    const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+    const distance = this.displayWidth * 1.6;
+    const dx = Math.cos(angle) * distance;
+    const dy = Math.sin(angle) * distance;
+    this.spawnChild(nextStage, stageConfig, this.x - dx, this.y - dy);
+    this.spawnChild(nextStage, stageConfig, this.x + dx, this.y + dy);
   }
 
   spawnChild(stage, stageConfig, x, y) {
-    const child = new SplitterEnemy(this.scene, x, y, {
+    const margin = 24;
+    const child = new SplitterEnemy(this.scene, Phaser.Math.Clamp(x, margin, GAME_WIDTH - margin), Phaser.Math.Clamp(y, margin, GAME_HEIGHT - margin), {
       tier: this.tier,
       hp: stageConfig.hp,
       texture: stageConfig.texture,
