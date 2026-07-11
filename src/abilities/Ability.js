@@ -31,6 +31,12 @@ export class Ability {
     return this.stats[key];
   }
 
+  // Debug hooks. refill() tops up this ability's resource (used by the debug
+  // "infinite resources" cheat); debugState() returns a short introspection
+  // string for the debug readout. Overridden per ability.
+  refill() {}
+  debugState() { return ''; }
+
   aimAngle() {
     const p = this.scene.input.activePointer;
     return Phaser.Math.Angle.Between(this.scene.player.x, this.scene.player.y, p.x, p.y);

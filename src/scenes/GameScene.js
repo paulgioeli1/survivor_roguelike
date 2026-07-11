@@ -8,6 +8,7 @@ import { CameraController } from '../systems/CameraController.js';
 import { Player } from '../entities/Player.js';
 import { createAbility } from '../abilities/index.js';
 import { spawnGamespaceObjectByName } from '../entities/gamespace/index.js';
+import { DebugSystem } from '../systems/DebugSystem.js';
 
 // Thin coordinator: builds the world, player, HUD, camera, and spawner, wires
 // shared collisions, and delegates per-frame work to those pieces. Combat
@@ -83,6 +84,10 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.updateResourceHud();
+
+    // Dev-only debug/cheat overlay (backtick to toggle). Gated by Vite's DEV
+    // flag so it never ships in a production build.
+    if (import.meta.env.DEV) this.debug = new DebugSystem(this);
   }
 
   update(time, delta) {
@@ -94,6 +99,8 @@ export class GameScene extends Phaser.Scene {
     this.player.update(delta);
     this.updateEnemies(delta);
     this.updateResourceHud();
+
+    if (this.debug) this.debug.update();
   }
 
   updateResourceHud() {

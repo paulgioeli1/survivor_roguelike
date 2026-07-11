@@ -149,6 +149,15 @@ export class LaserAbility extends Ability {
     this.ultimateActive = false;
   }
 
+  refill() {
+    this.energy = this.getStat('energyMax');
+    this.lockedOut = false;
+  }
+
+  debugState() {
+    return `energy=${Math.floor(this.energy)}/${this.getStat('energyMax')}${this.lockedOut ? ' LOCKED' : ''}`;
+  }
+
   hudText() {
     const pct = Math.floor(this.energy);
     const label = this.lockedOut

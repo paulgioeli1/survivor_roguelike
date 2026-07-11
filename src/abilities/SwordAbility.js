@@ -98,6 +98,15 @@ export class SwordAbility extends Ability {
     });
   }
 
+  refill() {
+    this.swingTimer = 0;
+    this.ultimateTimer = 0;
+  }
+
+  debugState() {
+    return `swing=${Math.ceil(this.swingTimer)}ms spin=${Math.ceil(this.ultimateTimer)}ms`;
+  }
+
   hudText() {
     const ready = this.ultimateTimer <= 0;
     return ready

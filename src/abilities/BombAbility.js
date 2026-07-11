@@ -79,6 +79,14 @@ export class BombAbility extends Ability {
     });
   }
 
+  refill() {
+    this.inventory = this.getStat('inventoryMax');
+  }
+
+  debugState() {
+    return `bombs=${this.inventory}/${this.getStat('inventoryMax')} placed=${this.bombs.getLength()}`;
+  }
+
   hudText() {
     return {
       text: `bombs  ${this.inventory}/${this.getStat('inventoryMax')}   |   right click: detonate all`,
