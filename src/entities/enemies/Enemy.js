@@ -18,6 +18,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.hp = config.hp;
     this.speed = config.speed;
     this.lastHitTime = 0;           // per-enemy hit throttle (orb/laser)
+    this.lastNearMs = scene.time.now; // for the stale-enemy cull; fresh on spawn
     this.blocksPlayer = !!config.blocksPlayer; // stationary blockers opt in via registry config
     this.stacks = new Stacks(this); // inert composition seam
 

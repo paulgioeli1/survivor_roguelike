@@ -2,6 +2,11 @@
 // when balancing the game (and the file a future live-tuning/cheat menu reads).
 import { COLORS } from './colors.js';
 
+// Hard cap on simultaneously-active enemies — a framerate backstop, NOT a
+// difficulty mechanic. When at cap the spawners pause (they never despawn a
+// chasing enemy). See SpawnSystem.
+export const MAX_ACTIVE_ENEMIES = 400;
+
 export const ENEMY_TIERS = {
   red: { hp: 1, speed: 119, color: COLORS.red, texture: 'enemy-red' },
   green: { hp: 2, speed: 77, color: COLORS.green, texture: 'enemy-green' },

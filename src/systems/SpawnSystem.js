@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { WORLD_WIDTH, WORLD_HEIGHT } from '../config/constants.js';
+import { WORLD_WIDTH, WORLD_HEIGHT, VIEW_RADIUS } from '../config/constants.js';
+import { MAX_ACTIVE_ENEMIES } from '../config/balance.js';
 import { spawnEnemyByName } from '../entities/enemies/index.js';
 
 // Owns enemy spawning: the 1s spawn loop + difficulty curve, the ranged
@@ -39,10 +40,24 @@ export class SpawnSystem {
       loop: true,
       callback: () => this.spawnWall()
     });
+
+    // Perf backstop: periodically remove enemies that have been far off-screen
+    // and unseen for a long time. Never touches nearby/chasing enemies.
+    this.cullTimer = scene.time.addEvent({
+      delay: 5000,
+      loop: true,
+      callback: () => this.cullStaleEnemies()
+    });
+  }
+
+  // A framerate backstop, not a difficulty mechanic — see MAX_ACTIVE_ENEMIES.
+  atCap() {
+    return this.scene.enemies.getLength() >= MAX_ACTIVE_ENEMIES;
   }
 
   spawnEnemy() {
     const scene = this.scene;
+    if (this.atCap()) return;
     // Difficulty curve: red share shrinks over time (every 15s), shifting the
     // mix toward green then blue. Unchanged from the original tuning.
     const tierStepIndex = Math.floor(scene.elapsed / 15);
@@ -62,7 +77,7 @@ export class SpawnSystem {
 
   spawnTurretEnemy() {
     const scene = this.scene;
-    if (scene.gameOver) return;
+    if (scene.gameOver || this.atCap()) return;
     // Ring-spawn like everything else (off-screen), then travel to a station
     // point within the player's view so it stops and fires on-screen.
     const pos = scene.getSpawnPosition();
@@ -74,16 +89,29 @@ export class SpawnSystem {
 
   spawnSplitter() {
     const scene = this.scene;
-    if (scene.gameOver) return;
+    if (scene.gameOver || this.atCap()) return;
     const pos = scene.getSpawnPosition();
     spawnEnemyByName(scene, 'splitter', pos.x, pos.y);
   }
 
   spawnWall() {
     const scene = this.scene;
-    if (scene.gameOver) return;
+    if (scene.gameOver || this.atCap()) return;
     const pos = scene.getSpawnPosition();
     spawnEnemyByName(scene, 'wall', pos.x, pos.y); // telegraphed — see spawnWithTelegraph()
+  }
+
+  cullStaleEnemies() {
+    const scene = this.scene;
+    const now = scene.time.now;
+    const farThreshold = VIEW_RADIUS * 1.5;
+    scene.enemies.getChildren().slice().forEach((enemy) => {
+      if (!enemy.active) return;
+      const far = Phaser.Math.Distance.Between(enemy.x, enemy.y, scene.player.x, scene.player.y) > farThreshold;
+      // Raw destroy() — NOT die(): abandoned & off-screen, so no particles,
+      // kill count, or loot. Removing it is invisible to the player.
+      if (far && now - enemy.lastNearMs > 120000) enemy.destroy();
+    });
   }
 
   stop() {
@@ -91,5 +119,6 @@ export class SpawnSystem {
     if (this.turretSpawnTimer) this.turretSpawnTimer.remove();
     this.splitterSpawnTimer.remove();
     this.wallSpawnTimer.remove();
+    this.cullTimer.remove();
   }
 }

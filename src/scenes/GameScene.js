@@ -200,8 +200,16 @@ export class GameScene extends Phaser.Scene {
 
   updateEnemies(delta) {
     // Polymorphic: each enemy subclass decides how it moves (base chases,
-    // TurretEnemy runs its own state machine).
-    this.enemies.getChildren().forEach((enemy) => enemy.update(delta));
+    // TurretEnemy runs its own state machine). Also refresh each enemy's
+    // "last seen near the player" stamp, which the stale cull reads.
+    const now = this.time.now;
+    const nearThreshold = VIEW_RADIUS * 1.5;
+    this.enemies.getChildren().forEach((enemy) => {
+      enemy.update(delta);
+      if (Phaser.Math.Distance.Between(enemy.x, enemy.y, this.player.x, this.player.y) <= nearThreshold) {
+        enemy.lastNearMs = now;
+      }
+    });
   }
 
   // Called by Enemy.die() after its death visuals run — scene-wide kill
