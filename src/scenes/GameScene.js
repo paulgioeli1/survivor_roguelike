@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
-import { GAME_WIDTH, GAME_HEIGHT } from '../config/constants.js';
+import { GAME_WIDTH, GAME_HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, VIEW_RADIUS } from '../config/constants.js';
+import { COLORS } from '../config/colors.js';
 import { WEAPONS } from '../config/balance.js';
-import { drawNeonGrid } from '../core/grid.js';
 import { SpawnSystem } from '../systems/SpawnSystem.js';
 import { Hud } from '../systems/Hud.js';
 import { CameraController } from '../systems/CameraController.js';
@@ -29,12 +29,20 @@ export class GameScene extends Phaser.Scene {
     this.elapsed = 0;
     this.gameOver = false;
 
-    this.physics.world.setBounds(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+    this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
-    drawNeonGrid(this, 0.5);
+    // Camera-locked scrolling grid: a view-sized TileSprite whose tile offset
+    // tracks the camera scroll, faking a continuous world-fixed grid at any
+    // world size (see update()). Sits behind everything.
+    this.grid = this.add.tileSprite(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 'grid-tile-tex')
+      .setScrollFactor(0)
+      .setDepth(-10);
+
     this.camera = new CameraController(this);
 
-    this.player = new Player(this, GAME_WIDTH / 2, GAME_HEIGHT / 2);
+    this.player = new Player(this, WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
+    this.camera.follow(this.player);
 
     // Shared groups the scene owns. Ability-specific projectile groups (orbs,
     // bullets, bombs) are created by the ability itself in its init().
@@ -61,9 +69,9 @@ export class GameScene extends Phaser.Scene {
     this.physics.add.collider(this.player, this.enemyBlockers);
     this.physics.add.overlap(this.player, this.gamespaceObjects, (p, obj) => obj.onPlayerOverlap(p), null, this);
 
-    // Demo: one static wall proving the gamespace pattern. Remove or replace
-    // with real level layout later.
-    spawnGamespaceObjectByName(this, 'obstacle', GAME_WIDTH / 2 + 320, GAME_HEIGHT / 2);
+    // Demo: one static wall proving the gamespace pattern, near the player's
+    // world-center start. Remove or replace with real level layout later.
+    spawnGamespaceObjectByName(this, 'obstacle', WORLD_WIDTH / 2 + 320, WORLD_HEIGHT / 2);
 
     // Give the player its starting ability. addAbility() runs the ability's
     // init(), which wires up its own groups/collisions/HUD extras.
@@ -103,6 +111,10 @@ export class GameScene extends Phaser.Scene {
 
     this.elapsed += delta / 1000;
     this.hud.setTime(this.elapsed);
+
+    // Scroll the grid opposite the camera so it reads as world-fixed.
+    this.grid.tilePositionX = this.cameras.main.scrollX;
+    this.grid.tilePositionY = this.cameras.main.scrollY;
 
     this.player.update(delta);
     this.updateEnemies(delta);

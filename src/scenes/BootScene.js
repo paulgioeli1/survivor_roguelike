@@ -117,6 +117,16 @@ export class BootScene extends Phaser.Scene {
     this.createSquareTexture('splitter-big-tex', COLORS.splitter, 56);
     this.createSquareTexture('splitter-medium-tex', COLORS.splitter, 38);
     this.createSquareTexture('splitter-small-tex', COLORS.splitter, 24);
+
+    // Grid tile: one 40x40 cell with lines on the top + left edges so it tiles
+    // seamlessly into a continuous grid. Rendered as a camera-locked TileSprite
+    // in GameScene, scrolled to fake a world-fixed grid at any world size.
+    const gridG = this.add.graphics();
+    gridG.fillStyle(COLORS.grid, 0.5);
+    gridG.fillRect(0, 0, 40, 1); // top edge
+    gridG.fillRect(0, 0, 1, 40); // left edge
+    gridG.generateTexture('grid-tile-tex', 40, 40);
+    gridG.destroy();
   }
 
   createTriangleTexture(key, color, size) {
