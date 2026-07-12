@@ -7,7 +7,6 @@ import { Hud } from '../systems/Hud.js';
 import { CameraController } from '../systems/CameraController.js';
 import { Player } from '../entities/Player.js';
 import { createAbility } from '../abilities/index.js';
-import { spawnGamespaceObjectByName } from '../entities/gamespace/index.js';
 import { DebugSystem } from '../systems/DebugSystem.js';
 import { Analytics } from '../systems/Analytics.js';
 import { saveRun } from '../systems/RunSaver.js';
@@ -76,10 +75,8 @@ export class GameScene extends Phaser.Scene {
     this.physics.add.collider(this.player, this.gamespaceBlockers);
     this.physics.add.collider(this.player, this.enemyBlockers);
     this.physics.add.overlap(this.player, this.gamespaceObjects, (p, obj) => obj.onPlayerOverlap(p), null, this);
-
-    // Demo: one static wall proving the gamespace pattern, near the player's
-    // world-center start. Remove or replace with real level layout later.
-    spawnGamespaceObjectByName(this, 'obstacle', WORLD_WIDTH / 2 + 320, WORLD_HEIGHT / 2);
+    // (The gamespace groups above are wired and empty — Phase 2 populates the
+    // world with real, persistent structures drawn from the gamespace registry.)
 
     // Give the player its starting ability. addAbility() runs the ability's
     // init(), which wires up its own groups/collisions/HUD extras.
