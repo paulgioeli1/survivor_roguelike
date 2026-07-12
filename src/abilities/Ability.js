@@ -31,8 +31,19 @@ export class Ability {
     return this.stats[key];
   }
 
+  // Debug hooks. refill() tops up this ability's resource (used by the debug
+  // "infinite resources" cheat); debugState() returns a short introspection
+  // string for the debug readout. Overridden per ability.
+  refill() {}
+  debugState() { return ''; }
+
   aimAngle() {
+    // The pointer's x/y are SCREEN coords, but the player lives in WORLD coords
+    // (far from the origin now that the camera follows). Convert the cursor to
+    // world space through the current camera each frame, or every shot points
+    // toward the world origin regardless of the mouse.
     const p = this.scene.input.activePointer;
-    return Phaser.Math.Angle.Between(this.scene.player.x, this.scene.player.y, p.x, p.y);
+    const world = this.scene.cameras.main.getWorldPoint(p.x, p.y);
+    return Phaser.Math.Angle.Between(this.scene.player.x, this.scene.player.y, world.x, world.y);
   }
 }

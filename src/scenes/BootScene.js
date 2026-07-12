@@ -98,6 +98,35 @@ export class BootScene extends Phaser.Scene {
     obg.strokeRect(1, 1, 78, 78);
     obg.generateTexture('obstacle-tex', 80, 80);
     obg.destroy();
+
+    // Wall enemy: a stationary rectangular blocker (1x2 grid cells — tall and
+    // narrow to read as distinct from the square gamespace Obstacle above).
+    const wallW = 40;
+    const wallH = 80;
+    const wg = this.add.graphics();
+    wg.fillStyle(COLORS.wall, 0.25);
+    wg.fillRect(0, 0, wallW, wallH);
+    wg.fillStyle(COLORS.wall, 1);
+    wg.fillRect(4, 4, wallW - 8, wallH - 8);
+    wg.generateTexture('wall-enemy-tex', wallW, wallH);
+    wg.destroy();
+
+    // Splitter enemy: a square that splits into two smaller copies of itself
+    // when killed (except at its smallest stage). Same color across all three
+    // sizes — only the shape shrinks.
+    this.createSquareTexture('splitter-big-tex', COLORS.splitter, 56);
+    this.createSquareTexture('splitter-medium-tex', COLORS.splitter, 38);
+    this.createSquareTexture('splitter-small-tex', COLORS.splitter, 24);
+
+    // Grid tile: one 40x40 cell with lines on the top + left edges so it tiles
+    // seamlessly into a continuous grid. Rendered as a camera-locked TileSprite
+    // in GameScene, scrolled to fake a world-fixed grid at any world size.
+    const gridG = this.add.graphics();
+    gridG.fillStyle(COLORS.grid, 0.5);
+    gridG.fillRect(0, 0, 40, 1); // top edge
+    gridG.fillRect(0, 0, 1, 40); // left edge
+    gridG.generateTexture('grid-tile-tex', 40, 40);
+    gridG.destroy();
   }
 
   createTriangleTexture(key, color, size) {
@@ -109,6 +138,18 @@ export class BootScene extends Phaser.Scene {
     g.fillTriangle(cx, pad - 4, pad - 4, total - pad + 4, total - pad + 4, total - pad + 4);
     g.fillStyle(color, 1);
     g.fillTriangle(cx, pad, pad, total - pad, total - pad, total - pad);
+    g.generateTexture(key, total, total);
+    g.destroy();
+  }
+
+  createSquareTexture(key, color, size) {
+    const pad = 6;
+    const total = size + pad * 2;
+    const g = this.add.graphics();
+    g.fillStyle(color, 0.25);
+    g.fillRect(0, 0, total, total);
+    g.fillStyle(color, 1);
+    g.fillRect(pad, pad, size, size);
     g.generateTexture(key, total, total);
     g.destroy();
   }

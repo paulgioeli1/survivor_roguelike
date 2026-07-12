@@ -14,5 +14,7 @@ export const COLORS = {
   gun: 0xfff275,
   laser: 0xb15bff,
   sword: 0xdfe8ff,
-  turret: 0xb84dff
+  turret: 0xb84dff,
+  wall: 0x9aa5c9,
+  splitter: 0x2de0c2
 };

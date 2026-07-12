@@ -56,9 +56,29 @@ spawner, wires shared collisions, and delegates per-frame work. Keep it that way
 ## How to add things
 
 **An enemy:** create `entities/enemies/FooEnemy.js` extending `Enemy`; override
-`update(delta)` (movement) or `onDeath()` (e.g. revive) only if it differs. Add
-stats to `ENEMY_TIERS` in `balance.js` and one line to `ENEMY_REGISTRY`. The
-`Enemy` base gives you `takeDamage()`, `die()`, and a chasing `update()`.
+`update(delta)` (movement), `onDeath()` (e.g. revive), `setupBody()` (shape/body,
+e.g. a rectangular immovable blocker — see `WallEnemy`), or `onPlayerContact()`
+(what happens when the player touches it — default is contact damage; a
+stationary blocker no-ops here since physical blocking is a separate collider)
+only if it differs. Add stats to `ENEMY_TIERS` in `balance.js` and one line to
+`ENEMY_REGISTRY`. Two registry config flags: `blocksPlayer: true` also adds the
+enemy to `scene.enemyBlockers` (the collider group that physically stops the
+player — set `blocksPlayer` rather than wiring a collider yourself); `telegraphMs`
+delays the real spawn behind a pulsing warning outline for that many ms (see
+`spawnEnemyByName` in `entities/enemies/index.js` — works for any enemy, not
+just one type). A telegraphed spawn returns `null` synchronously; guard before
+touching the result (see `DebugSystem.spawnEnemy`). The `Enemy` base gives you
+`takeDamage()`, `die()`, and a chasing `update()`.
+
+**A multi-stage enemy** (splits/transforms instead of just dying, e.g.
+`SplitterEnemy`): override `die()` itself rather than `onDeath()` — the base
+`die()` pipeline (particles → kill count → destroy) assumes every death is a
+real kill, which isn't true for an intermediate stage. Keep the per-stage
+table (hp/texture per stage) in `balance.js` as its own export rather than
+forcing it into `ENEMY_TIERS`'s one-hp/one-texture shape. Only the registry's
+top-level entry needs registering; stage transitions construct further
+instances of the same class directly (see `SplitterEnemy.spawnChild`), since
+they aren't spawns a player/debug menu would ever pick by name.
 
 **An ability:** create `abilities/FooAbility.js` extending `Ability`; implement
 the hooks it uses (`init`, `update`, `onLeftClick`, `onRightClick`, `onKill`,
@@ -80,8 +100,14 @@ for a trigger. Add a line to `GAMESPACE_REGISTRY`. No `GameScene` edits needed.
 - **`Stacks`** (`core/Stacks.js`) is attached to `Player` and every `Enemy`
   (composition, since they share no parent). Inert today; it's where the
   "N stacks → effect" strategic system will hook in.
-- **`CameraController`** owns screen juice. Opening the world beyond the viewport
-  is `camera.startFollow(player)` once `WORLD_WIDTH/HEIGHT` exceed the screen.
+- **Open world (live):** `WORLD_WIDTH/HEIGHT` (40000) is the fixed world; `GAME_WIDTH/HEIGHT`
+  (1800x1200) is the VIEW (camera/canvas). Keep the two distinct — world clamps use
+  `WORLD_*`, screen/HUD layout uses `GAME_*`. `CameraController.follow` center-locks on
+  the player; the grid is a scroll-locked TileSprite; HUD is pinned with `setScrollFactor(0)`.
+- **Enemy spawning is an off-screen ring** around the player (`GameScene.getSpawnPosition`,
+  `VIEW_RADIUS`-based) — that (not culling) is what stops "run away = win". Pickups use
+  `getPickupPosition` (in-view). Enemy culling (`SpawnSystem.cullStaleEnemies` + `MAX_ACTIVE_ENEMIES`)
+  is a PERF backstop only — it never removes a nearby/chasing enemy.
 - **`BootScene`** is the one place to load real art/audio (`this.load.*`) and
   generate placeholder textures.
 

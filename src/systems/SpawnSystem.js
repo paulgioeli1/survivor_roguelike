@@ -1,10 +1,12 @@
 import Phaser from 'phaser';
-import { GAME_WIDTH, GAME_HEIGHT } from '../config/constants.js';
+import { WORLD_WIDTH, WORLD_HEIGHT, VIEW_RADIUS } from '../config/constants.js';
+import { MAX_ACTIVE_ENEMIES } from '../config/balance.js';
 import { spawnEnemyByName } from '../entities/enemies/index.js';
 
-// Owns enemy spawning: the 1s spawn loop + difficulty curve, and the ranged
-// turret spawner that kicks in after 30s. Reads the enemy registry, so adding
-// an enemy type never touches this file.
+// Owns enemy spawning: the 1s spawn loop + difficulty curve, the ranged
+// turret spawner that kicks in after 30s, the splitter spawner every 15s, and
+// the wall spawner every 20s. Reads the enemy registry, so adding an enemy
+// type never touches this file.
 export class SpawnSystem {
   constructor(scene) {
     this.scene = scene;
@@ -26,10 +28,36 @@ export class SpawnSystem {
         callback: () => this.spawnTurretEnemy()
       });
     });
+
+    this.splitterSpawnTimer = scene.time.addEvent({
+      delay: 15000,
+      loop: true,
+      callback: () => this.spawnSplitter()
+    });
+
+    this.wallSpawnTimer = scene.time.addEvent({
+      delay: 20000,
+      loop: true,
+      callback: () => this.spawnWall()
+    });
+
+    // Perf backstop: periodically remove enemies that have been far off-screen
+    // and unseen for a long time. Never touches nearby/chasing enemies.
+    this.cullTimer = scene.time.addEvent({
+      delay: 5000,
+      loop: true,
+      callback: () => this.cullStaleEnemies()
+    });
+  }
+
+  // A framerate backstop, not a difficulty mechanic — see MAX_ACTIVE_ENEMIES.
+  atCap() {
+    return this.scene.enemies.getLength() >= MAX_ACTIVE_ENEMIES;
   }
 
   spawnEnemy() {
     const scene = this.scene;
+    if (this.atCap()) return;
     // Difficulty curve: red share shrinks over time (every 15s), shifting the
     // mix toward green then blue. Unchanged from the original tuning.
     const tierStepIndex = Math.floor(scene.elapsed / 15);
@@ -49,43 +77,48 @@ export class SpawnSystem {
 
   spawnTurretEnemy() {
     const scene = this.scene;
-    if (scene.gameOver) return;
-    const margin = 24;
-    const edge = Phaser.Math.Between(0, 3); // 0=left, 1=right, 2=top, 3=bottom
-    let x;
-    let y;
-    let inwardAngle;
-    if (edge === 0) {
-      x = margin;
-      y = Phaser.Math.Between(margin, GAME_HEIGHT - margin);
-      inwardAngle = 0;
-    } else if (edge === 1) {
-      x = GAME_WIDTH - margin;
-      y = Phaser.Math.Between(margin, GAME_HEIGHT - margin);
-      inwardAngle = Math.PI;
-    } else if (edge === 2) {
-      x = Phaser.Math.Between(margin, GAME_WIDTH - margin);
-      y = margin;
-      inwardAngle = Math.PI / 2;
-    } else {
-      x = Phaser.Math.Between(margin, GAME_WIDTH - margin);
-      y = GAME_HEIGHT - margin;
-      inwardAngle = -Math.PI / 2;
-    }
-
-    // Bias travel away from the spawn wall and clamp the landing point so a
-    // long roll can't carry it through the opposite wall.
-    const angle = inwardAngle + Phaser.Math.FloatBetween(-Phaser.Math.DegToRad(70), Phaser.Math.DegToRad(70));
-    const travelDist = Phaser.Math.Between(150, 500);
-    const targetX = Phaser.Math.Clamp(x + Math.cos(angle) * travelDist, margin, GAME_WIDTH - margin);
-    const targetY = Phaser.Math.Clamp(y + Math.sin(angle) * travelDist, margin, GAME_HEIGHT - margin);
-
-    const enemy = spawnEnemyByName(scene, 'turret', x, y);
+    if (scene.gameOver || this.atCap()) return;
+    // Ring-spawn like everything else (off-screen), then travel to a station
+    // point within the player's view so it stops and fires on-screen.
+    const pos = scene.getSpawnPosition();
+    const enemy = spawnEnemyByName(scene, 'turret', pos.x, pos.y);
+    const targetX = Phaser.Math.Clamp(scene.player.x + Phaser.Math.RND.sign() * Phaser.Math.Between(200, 700), 40, WORLD_WIDTH - 40);
+    const targetY = Phaser.Math.Clamp(scene.player.y + Phaser.Math.RND.sign() * Phaser.Math.Between(150, 500), 40, WORLD_HEIGHT - 40);
     enemy.setTravelTarget(targetX, targetY);
+  }
+
+  spawnSplitter() {
+    const scene = this.scene;
+    if (scene.gameOver || this.atCap()) return;
+    const pos = scene.getSpawnPosition();
+    spawnEnemyByName(scene, 'splitter', pos.x, pos.y);
+  }
+
+  spawnWall() {
+    const scene = this.scene;
+    if (scene.gameOver || this.atCap()) return;
+    const pos = scene.getSpawnPosition();
+    spawnEnemyByName(scene, 'wall', pos.x, pos.y); // telegraphed — see spawnWithTelegraph()
+  }
+
+  cullStaleEnemies() {
+    const scene = this.scene;
+    const now = scene.time.now;
+    const farThreshold = VIEW_RADIUS * 1.5;
+    scene.enemies.getChildren().slice().forEach((enemy) => {
+      if (!enemy.active) return;
+      const far = Phaser.Math.Distance.Between(enemy.x, enemy.y, scene.player.x, scene.player.y) > farThreshold;
+      // Raw destroy() — NOT die(): abandoned & off-screen, so no particles,
+      // kill count, or loot. Removing it is invisible to the player.
+      if (far && now - enemy.lastNearMs > 120000) enemy.destroy();
+    });
   }
 
   stop() {
     this.spawnTimer.remove();
     if (this.turretSpawnTimer) this.turretSpawnTimer.remove();
+    this.splitterSpawnTimer.remove();
+    this.wallSpawnTimer.remove();
+    this.cullTimer.remove();
   }
 }

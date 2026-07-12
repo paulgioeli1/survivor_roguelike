@@ -113,6 +113,17 @@ export class OrbAbility extends Ability {
     });
   }
 
+  refill() {
+    if (!this.ultimateActive) this.ultimateReady = true;
+  }
+
+  debugState() {
+    const ult = this.ultimateReady
+      ? 'READY'
+      : `${Math.floor((this.ultimateTimer / this.getStat('ultimateCooldown')) * 100)}%`;
+    return `orbs=${this.orbGroup.getLength()} ult=${ult}`;
+  }
+
   hudText() {
     // Charging → grey %, ready → white prompt, active → prompt stays (grey)
     // through the 3s animation, matching the original readout.

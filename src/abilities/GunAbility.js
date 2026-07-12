@@ -64,6 +64,14 @@ export class GunAbility extends Ability {
     enemy.takeDamage(1);
   }
 
+  refill() {
+    this.inventory = this.getStat('inventoryMax');
+  }
+
+  debugState() {
+    return `ammo=${this.inventory}/${this.getStat('inventoryMax')} bullets=${this.bullets.getLength()}`;
+  }
+
   hudText() {
     const full = this.inventory >= this.getStat('inventoryMax');
     return {
