@@ -100,8 +100,14 @@ for a trigger. Add a line to `GAMESPACE_REGISTRY`. No `GameScene` edits needed.
 - **`Stacks`** (`core/Stacks.js`) is attached to `Player` and every `Enemy`
   (composition, since they share no parent). Inert today; it's where the
   "N stacks → effect" strategic system will hook in.
-- **`CameraController`** owns screen juice. Opening the world beyond the viewport
-  is `camera.startFollow(player)` once `WORLD_WIDTH/HEIGHT` exceed the screen.
+- **Open world (live):** `WORLD_WIDTH/HEIGHT` (40000) is the fixed world; `GAME_WIDTH/HEIGHT`
+  (1800x1200) is the VIEW (camera/canvas). Keep the two distinct — world clamps use
+  `WORLD_*`, screen/HUD layout uses `GAME_*`. `CameraController.follow` center-locks on
+  the player; the grid is a scroll-locked TileSprite; HUD is pinned with `setScrollFactor(0)`.
+- **Enemy spawning is an off-screen ring** around the player (`GameScene.getSpawnPosition`,
+  `VIEW_RADIUS`-based) — that (not culling) is what stops "run away = win". Pickups use
+  `getPickupPosition` (in-view). Enemy culling (`SpawnSystem.cullStaleEnemies` + `MAX_ACTIVE_ENEMIES`)
+  is a PERF backstop only — it never removes a nearby/chasing enemy.
 - **`BootScene`** is the one place to load real art/audio (`this.load.*`) and
   generate placeholder textures.
 
