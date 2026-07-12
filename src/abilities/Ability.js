@@ -38,7 +38,12 @@ export class Ability {
   debugState() { return ''; }
 
   aimAngle() {
+    // The pointer's x/y are SCREEN coords, but the player lives in WORLD coords
+    // (far from the origin now that the camera follows). Convert the cursor to
+    // world space through the current camera each frame, or every shot points
+    // toward the world origin regardless of the mouse.
     const p = this.scene.input.activePointer;
-    return Phaser.Math.Angle.Between(this.scene.player.x, this.scene.player.y, p.x, p.y);
+    const world = this.scene.cameras.main.getWorldPoint(p.x, p.y);
+    return Phaser.Math.Angle.Between(this.scene.player.x, this.scene.player.y, world.x, world.y);
   }
 }
