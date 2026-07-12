@@ -139,16 +139,24 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  // Off-screen ring around the player: enemies spawn just beyond the view and
+  // walk in from every direction. This (not culling) is what stops a fleeing
+  // player from outrunning the horde — fresh enemies appear ahead of them too.
   getSpawnPosition() {
-    const margin = 24;
-    let x;
-    let y;
-    let dist;
-    do {
-      x = Phaser.Math.Between(margin, GAME_WIDTH - margin);
-      y = Phaser.Math.Between(margin, GAME_HEIGHT - margin);
-      dist = Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y);
-    } while (dist < 140);
+    const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+    const dist = Phaser.Math.Between(VIEW_RADIUS + 80, VIEW_RADIUS + 380);
+    const x = Phaser.Math.Clamp(this.player.x + Math.cos(angle) * dist, 40, WORLD_WIDTH - 40);
+    const y = Phaser.Math.Clamp(this.player.y + Math.sin(angle) * dist, 40, WORLD_HEIGHT - 40);
+    return { x, y };
+  }
+
+  // Within the view, near the player, so on-screen pickups (batteries) are
+  // findable — unlike the off-screen enemy ring.
+  getPickupPosition() {
+    const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+    const dist = Phaser.Math.Between(120, VIEW_RADIUS * 0.7);
+    const x = Phaser.Math.Clamp(this.player.x + Math.cos(angle) * dist, 40, WORLD_WIDTH - 40);
+    const y = Phaser.Math.Clamp(this.player.y + Math.sin(angle) * dist, 40, WORLD_HEIGHT - 40);
     return { x, y };
   }
 
@@ -172,7 +180,7 @@ export class GameScene extends Phaser.Scene {
 
   spawnBatteryCell() {
     if (this.gameOver) return;
-    const pos = this.getSpawnPosition();
+    const pos = this.getPickupPosition();
     const pickup = this.physics.add.sprite(pos.x, pos.y, 'battery-tex');
     pickup.pickupType = 'battery';
     pickup.body.setCircle(9, pickup.width / 2 - 9, pickup.height / 2 - 9);

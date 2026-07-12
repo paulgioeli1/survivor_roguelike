@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_WIDTH, GAME_HEIGHT } from '../config/constants.js';
+import { WORLD_WIDTH, WORLD_HEIGHT } from '../config/constants.js';
 import { spawnEnemyByName } from '../entities/enemies/index.js';
 
 // Owns enemy spawning: the 1s spawn loop + difficulty curve, the ranged
@@ -63,37 +63,12 @@ export class SpawnSystem {
   spawnTurretEnemy() {
     const scene = this.scene;
     if (scene.gameOver) return;
-    const margin = 24;
-    const edge = Phaser.Math.Between(0, 3); // 0=left, 1=right, 2=top, 3=bottom
-    let x;
-    let y;
-    let inwardAngle;
-    if (edge === 0) {
-      x = margin;
-      y = Phaser.Math.Between(margin, GAME_HEIGHT - margin);
-      inwardAngle = 0;
-    } else if (edge === 1) {
-      x = GAME_WIDTH - margin;
-      y = Phaser.Math.Between(margin, GAME_HEIGHT - margin);
-      inwardAngle = Math.PI;
-    } else if (edge === 2) {
-      x = Phaser.Math.Between(margin, GAME_WIDTH - margin);
-      y = margin;
-      inwardAngle = Math.PI / 2;
-    } else {
-      x = Phaser.Math.Between(margin, GAME_WIDTH - margin);
-      y = GAME_HEIGHT - margin;
-      inwardAngle = -Math.PI / 2;
-    }
-
-    // Bias travel away from the spawn wall and clamp the landing point so a
-    // long roll can't carry it through the opposite wall.
-    const angle = inwardAngle + Phaser.Math.FloatBetween(-Phaser.Math.DegToRad(70), Phaser.Math.DegToRad(70));
-    const travelDist = Phaser.Math.Between(150, 500);
-    const targetX = Phaser.Math.Clamp(x + Math.cos(angle) * travelDist, margin, GAME_WIDTH - margin);
-    const targetY = Phaser.Math.Clamp(y + Math.sin(angle) * travelDist, margin, GAME_HEIGHT - margin);
-
-    const enemy = spawnEnemyByName(scene, 'turret', x, y);
+    // Ring-spawn like everything else (off-screen), then travel to a station
+    // point within the player's view so it stops and fires on-screen.
+    const pos = scene.getSpawnPosition();
+    const enemy = spawnEnemyByName(scene, 'turret', pos.x, pos.y);
+    const targetX = Phaser.Math.Clamp(scene.player.x + Phaser.Math.RND.sign() * Phaser.Math.Between(200, 700), 40, WORLD_WIDTH - 40);
+    const targetY = Phaser.Math.Clamp(scene.player.y + Phaser.Math.RND.sign() * Phaser.Math.Between(150, 500), 40, WORLD_HEIGHT - 40);
     enemy.setTravelTarget(targetX, targetY);
   }
 

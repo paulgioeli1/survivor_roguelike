@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { Enemy } from './Enemy.js';
 import { SPLITTER } from '../../config/balance.js';
-import { GAME_WIDTH, GAME_HEIGHT } from '../../config/constants.js';
+import { WORLD_WIDTH, WORLD_HEIGHT } from '../../config/constants.js';
 
 const MAX_STAGE = SPLITTER.stages.length - 1;
 
@@ -45,7 +45,7 @@ export class SplitterEnemy extends Enemy {
 
   spawnChild(stage, stageConfig, x, y) {
     const margin = 24;
-    const child = new SplitterEnemy(this.scene, Phaser.Math.Clamp(x, margin, GAME_WIDTH - margin), Phaser.Math.Clamp(y, margin, GAME_HEIGHT - margin), {
+    const child = new SplitterEnemy(this.scene, Phaser.Math.Clamp(x, margin, WORLD_WIDTH - margin), Phaser.Math.Clamp(y, margin, WORLD_HEIGHT - margin), {
       tier: this.tier,
       hp: stageConfig.hp,
       texture: stageConfig.texture,
