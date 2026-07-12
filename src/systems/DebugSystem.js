@@ -94,6 +94,7 @@ export class DebugSystem {
       `pos ${Math.round(p.x)},${Math.round(p.y)}   speed ${p.getStat('moveSpeed')}`,
       `ability ${ab.constructor.name}  [${ab.debugState()}]`,
       `enemies ${s.enemies.getLength()}   pickups ${s.pickups.getLength()}   walls ${s.gamespaceBlockers.getLength()}`,
+      `structures ${s.structureSystem.liveCount()}/${s.structureSystem.records.length} live`,
       '',
       '── events ──',
       ...this.logLines

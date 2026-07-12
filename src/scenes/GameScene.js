@@ -3,6 +3,7 @@ import { GAME_WIDTH, GAME_HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, VIEW_RADIUS } from 
 import { COLORS } from '../config/colors.js';
 import { WEAPONS } from '../config/balance.js';
 import { SpawnSystem } from '../systems/SpawnSystem.js';
+import { StructureSystem } from '../systems/StructureSystem.js';
 import { Hud } from '../systems/Hud.js';
 import { CameraController } from '../systems/CameraController.js';
 import { Player } from '../entities/Player.js';
@@ -75,8 +76,12 @@ export class GameScene extends Phaser.Scene {
     this.physics.add.collider(this.player, this.gamespaceBlockers);
     this.physics.add.collider(this.player, this.enemyBlockers);
     this.physics.add.overlap(this.player, this.gamespaceObjects, (p, obj) => obj.onPlayerOverlap(p), null, this);
-    // (The gamespace groups above are wired and empty — Phase 2 populates the
-    // world with real, persistent structures drawn from the gamespace registry.)
+
+    // Pre-places structure records across the whole world at run start, then
+    // lazily instantiates/despawns their live objects each frame based on
+    // distance to the player (see update()). Reuses the collider/overlap
+    // wiring above automatically.
+    this.structureSystem = new StructureSystem(this);
 
     // Give the player its starting ability. addAbility() runs the ability's
     // init(), which wires up its own groups/collisions/HUD extras.
@@ -123,6 +128,7 @@ export class GameScene extends Phaser.Scene {
 
     this.player.update(delta);
     this.updateEnemies(delta);
+    this.structureSystem.update();
     this.updateResourceHud();
 
     if (this.debug) this.debug.update();
@@ -261,6 +267,7 @@ export class GameScene extends Phaser.Scene {
   endGame() {
     this.gameOver = true;
     this.spawnSystem.stop();
+    this.structureSystem.stop();
     if (this.batteryTimer) this.batteryTimer.remove();
     this.physics.pause();
 

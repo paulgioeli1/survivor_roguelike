@@ -1,6 +1,7 @@
 // All gameplay tuning numbers and type definitions. This is the file to edit
 // when balancing the game (and the file a future live-tuning/cheat menu reads).
 import { COLORS } from './colors.js';
+import { VIEW_RADIUS } from './constants.js';
 
 // Hard cap on simultaneously-active enemies — a framerate backstop, NOT a
 // difficulty mechanic. When at cap the spawners pause (they never despawn a
@@ -38,3 +39,20 @@ export const WEAPONS = {
   laser: { name: 'Laser', color: COLORS.laser, description: 'Hold left click to fire until energy runs out. Right click: overcharged beam.' },
   sword: { name: 'Sword', color: COLORS.sword, description: 'Left click: slash toward the cursor. Right click: spinning slash.' }
 };
+
+// Persistent world structures (Phase 2 — "stumble upon an oasis"). Records are
+// placed once at run start (StructureSystem), pure position-based RNG — never
+// biased toward player state. See docs/phase-2-structures.md.
+export const STRUCTURE_SPACING = 2500; // world-cell size for placement; ~one candidate slot per cell
+export const STRUCTURE_SPAWN_CHANCE = 0.5; // per-cell odds a slot actually gets a structure
+export const STRUCTURE_PLAYER_EXCLUSION_RADIUS = 1500; // no structures on top of the run's start point
+export const STRUCTURE_ACTIVATE_RADIUS = VIEW_RADIUS + 500; // lazy-instantiate the live object within this range
+export const STRUCTURE_DEACTIVATE_RADIUS = STRUCTURE_ACTIVATE_RADIUS + 400; // larger than activate to avoid boundary thrashing
+
+// Weighted placement table: which gamespace types appear in worldgen. Adding a
+// type later = one line here + its class/registry entry.
+export const STRUCTURE_PLACEMENT = [
+  { type: 'hpPool', weight: 1 }
+];
+
+export const HP_POOL = { healInterval: 1200, healAmount: 1 };

@@ -3,9 +3,11 @@
 // file, then add a line here. blocks:true routes it to the collider group
 // (walls); blocks:false routes it to the overlap group (triggers).
 import { Obstacle } from './Obstacle.js';
+import { HpPool } from './HpPool.js';
 
 export const GAMESPACE_REGISTRY = {
-  obstacle: { class: Obstacle, texture: 'obstacle-tex', blocks: true }
+  obstacle: { class: Obstacle, texture: 'obstacle-tex', blocks: true },
+  hpPool: { class: HpPool, texture: 'hp-pool-tex', blocks: false }
 };
 
 export function spawnGamespaceObjectByName(scene, name, x, y) {

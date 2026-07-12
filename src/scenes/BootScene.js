@@ -118,6 +118,22 @@ export class BootScene extends Phaser.Scene {
     this.createSquareTexture('splitter-medium-tex', COLORS.splitter, 38);
     this.createSquareTexture('splitter-small-tex', COLORS.splitter, 24);
 
+    // HP pool: a persistent world structure (Phase 2). Soft-edged glowing
+    // circle in the healing color, built from concentric rings of falling
+    // alpha so it reads as a pool you can stand in, not a hard-edged pickup.
+    const poolRadius = 70;
+    const poolG = this.add.graphics();
+    poolG.fillStyle(COLORS.pool, 0.08);
+    poolG.fillCircle(poolRadius, poolRadius, poolRadius);
+    poolG.fillStyle(COLORS.pool, 0.16);
+    poolG.fillCircle(poolRadius, poolRadius, poolRadius * 0.8);
+    poolG.fillStyle(COLORS.pool, 0.28);
+    poolG.fillCircle(poolRadius, poolRadius, poolRadius * 0.6);
+    poolG.fillStyle(COLORS.pool, 0.5);
+    poolG.fillCircle(poolRadius, poolRadius, poolRadius * 0.4);
+    poolG.generateTexture('hp-pool-tex', poolRadius * 2, poolRadius * 2);
+    poolG.destroy();
+
     // Grid tile: one 40x40 cell with lines on the top + left edges so it tiles
     // seamlessly into a continuous grid. Rendered as a camera-locked TileSprite
     // in GameScene, scrolled to fake a world-fixed grid at any world size.
