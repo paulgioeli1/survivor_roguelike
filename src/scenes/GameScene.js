@@ -44,6 +44,14 @@ export class GameScene extends Phaser.Scene {
     this.player = new Player(this, WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
     this.camera.follow(this.player);
 
+    // Soft, visible world edge: a thick neon border in world space (scrolls
+    // with the world, only seen when near it). The player already stops here
+    // via setCollideWorldBounds — this just makes the boundary readable so
+    // drifting into it is a redirect, not a surprise.
+    const border = this.add.graphics().setDepth(-5);
+    border.lineStyle(12, COLORS.player, 0.6);
+    border.strokeRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+
     // Shared groups the scene owns. Ability-specific projectile groups (orbs,
     // bullets, bombs) are created by the ability itself in its init().
     this.enemyBullets = this.physics.add.group();
