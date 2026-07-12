@@ -25,9 +25,11 @@ export class LaserAbility extends Ability {
     const barY = GAME_HEIGHT - 46;
     scene.add.rectangle(barX, barY, this.barWidth, 10, 0x1a1d3a)
       .setOrigin(0, 0.5)
-      .setStrokeStyle(1, 0xffffff, 0.25);
+      .setStrokeStyle(1, 0xffffff, 0.25)
+      .setScrollFactor(0);
     this.barFill = scene.add.rectangle(barX, barY, this.barWidth, 10, COLORS.laser)
-      .setOrigin(0, 0.5);
+      .setOrigin(0, 0.5)
+      .setScrollFactor(0);
   }
 
   update(delta) {

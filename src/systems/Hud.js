@@ -2,8 +2,10 @@ import { GAME_WIDTH, GAME_HEIGHT, FONT_FAMILY } from '../config/constants.js';
 import { COLORS } from '../config/colors.js';
 
 // Owns the heads-up display: timer, kill count, weapon label, HP pips, and the
-// shared bottom-left status line. Abilities that need extra HUD (e.g. the laser
-// energy bar) create it themselves in their init().
+// shared bottom-left status line. Every element is pinned to the camera with
+// setScrollFactor(0) so it stays fixed on screen as the world scrolls beneath
+// (its GAME_* positions are then screen coordinates). Abilities that need extra
+// HUD (e.g. the laser energy bar) create + pin it themselves in their init().
 export class Hud {
   constructor(scene, weaponName, weaponColor, maxHp) {
     this.scene = scene;
@@ -13,24 +15,25 @@ export class Hud {
       fontSize: '26px',
       fontStyle: '700',
       color: '#e8f9ff'
-    }).setOrigin(0.5, 0).setShadow(0, 0, '#00e5ff', 8, true, true);
+    }).setOrigin(0.5, 0).setShadow(0, 0, '#00e5ff', 8, true, true).setScrollFactor(0);
 
     this.scoreText = scene.add.text(20, 20, 'kills  0', {
       fontFamily: FONT_FAMILY,
       fontSize: '16px',
       color: '#8890b0'
-    });
+    }).setScrollFactor(0);
 
     scene.add.text(20, 44, weaponName, {
       fontFamily: FONT_FAMILY,
       fontSize: '13px',
       color: '#' + weaponColor.toString(16).padStart(6, '0')
-    });
+    }).setScrollFactor(0);
 
     this.hpPips = [];
     for (let i = 0; i < maxHp; i++) {
       const pip = scene.add.rectangle(GAME_WIDTH - 30 - i * 26, 30, 18, 18, COLORS.player)
-        .setStrokeStyle(1, 0xffffff, 0.4);
+        .setStrokeStyle(1, 0xffffff, 0.4)
+        .setScrollFactor(0);
       this.hpPips.push(pip);
     }
 
@@ -38,7 +41,7 @@ export class Hud {
       fontFamily: FONT_FAMILY,
       fontSize: '14px',
       color: '#4c5580'
-    });
+    }).setScrollFactor(0);
   }
 
   setTime(elapsed) {
